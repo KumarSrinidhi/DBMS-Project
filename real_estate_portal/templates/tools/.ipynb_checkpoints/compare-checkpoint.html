@@ -1,0 +1,63 @@
+<!-- templates/tools/compare.html -->
+<div class="comparison-tool">
+    <div class="row">
+        <div class="col-md-6">
+            <select class="form-select compare-select" data-side="left">
+                <option value="">Select Property 1</option>
+                {% for prop in recent_properties %}
+                <option value="{{ prop.propertyId }}">{{ prop.property_type.typeName }} in {{ prop.location.city }}</option>
+                {% endfor %}
+            </select>
+            <div id="compare-left" class="comparison-panel mt-3"></div>
+        </div>
+        <div class="col-md-6">
+            <select class="form-select compare-select" data-side="right">
+                <option value="">Select Property 2</option>
+                {% for prop in recent_properties %}
+                <option value="{{ prop.propertyId }}">{{ prop.property_type.typeName }} in {{ prop.location.city }}</option>
+                {% endfor %}
+            </select>
+            <div id="compare-right" class="comparison-panel mt-3"></div>
+        </div>
+    </div>
+    
+    <div class="comparison-summary mt-4">
+        <h4>Comparison Summary</h4>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Parameter</th>
+                    <th>Property 1</th>
+                    <th>Property 2</th>
+                </tr>
+            </thead>
+            <tbody id="comparison-results">
+                <!-- Filled by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+$('.compare-select').change(function() {
+    const side = $(this).data('side');
+    const propertyId = $(this).val();
+    
+    if (propertyId) {
+        $.get(`/api/properties/${propertyId}`, function(data) {
+            $(`#compare-${side}`).html(`
+                <h4>${data.type} in ${data.city}</h4>
+                <p>Price: ₹${data.price.toLocaleString()}</p>
+                <p>Area: ${data.area} sq.ft</p>
+                <!-- More details -->
+            `);
+            
+            updateComparison();
+        });
+    }
+});
+
+function updateComparison() {
+    // Compare both selected properties
+}
+</script>

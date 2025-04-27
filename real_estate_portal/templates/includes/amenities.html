@@ -1,0 +1,33 @@
+<!-- templates/includes/amenities.html -->
+<div class="amenities-section">
+    <h5>Amenities</h5>
+    <div class="amenities-grid">
+        {% set amenities_icons = {
+            'Swimming Pool': 'bi-water',
+            'Gym': 'bi-activity',
+            'Park': 'bi-tree',
+            'Security': 'bi-shield-lock',
+            'Power Backup': 'bi-lightning'
+        } %}
+        
+        {% for amenity in property.amenities %}
+        <div class="amenity-item">
+            <i class="bi {{ amenities_icons.get(amenity.name, 'bi-check-circle') }}"></i>
+            <span>{{ amenity.name }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+.amenities-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+}
+.amenity-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+</style>

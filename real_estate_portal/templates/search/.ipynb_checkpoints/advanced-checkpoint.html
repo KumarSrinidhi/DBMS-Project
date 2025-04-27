@@ -1,0 +1,76 @@
+<!-- templates/search/advanced.html -->
+<div class="search-container">
+    <div class="row">
+        <div class="col-md-3">
+            <div class="filter-card">
+                <h5>Property Type</h5>
+                <select class="form-select" id="propertyType">
+                    <option value="">All Types</option>
+                    {% for type in property_types %}
+                    <option value="{{ type.typeId }}">{{ type.typeName }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="filter-card">
+                <h5>Budget (₹)</h5>
+                <div class="range-slider">
+                    <input type="range" class="form-range" min="0" max="50000000" step="500000" id="minPrice">
+                    <input type="range" class="form-range" min="0" max="50000000" step="500000" id="maxPrice">
+                    <div class="range-values">
+                        <span id="minPriceValue">0</span> - 
+                        <span id="maxPriceValue">5 Cr+</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Add similar sections for other filters -->
+        </div>
+        
+        <div class="col-md-9">
+            <div id="map-container" style="height: 400px;"></div>
+            <div id="search-results" class="mt-4">
+                <!-- Results will load here via AJAX -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Initialize map with Leaflet.js
+const map = L.map('map-container').setView([20.5937, 78.9629], 5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+// AJAX search function
+function performSearch() {
+    const filters = {
+        type_id: $('#propertyType').val(),
+        min_price: $('#minPrice').val(),
+        max_price: $('#maxPrice').val()
+        // Add other filter values
+    };
+    
+    $.get('/api/properties/search', filters, function(data) {
+        $('#search-results').empty();
+        data.forEach(property => {
+            $('#search-results').append(`
+                <div class="property-card">
+                    <h3>${property.type} in ${property.city}</h3>
+                    <p>₹${property.price.toLocaleString()}</p>
+                    <!-- Add more details -->
+                </div>
+            `);
+            
+            // Add marker to map
+            L.marker([property.lat, property.lng]).addTo(map)
+                .bindPopup(`<b>₹${property.price.toLocaleString()}</b><br>${property.type}`);
+        });
+    });
+}
+
+// Initialize search on page load and filter changes
+$(document).ready(function() {
+    performSearch();
+    $('.filter-card input, .filter-card select').change(performSearch);
+});
+</script>
