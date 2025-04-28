@@ -229,17 +229,24 @@
 {% block scripts %}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+let propertyMap = null;
+
 document.getElementById('valuationForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
     const formData = {
         propertyType: document.getElementById('propertyType').value,
         location: document.getElementById('location').value,
-        carpetArea: document.getElementById('carpetArea').value,
-        propertyAge: document.getElementById('propertyAge').value,
+        carpetArea: parseFloat(document.getElementById('carpetArea').value),
+        propertyAge: parseInt(document.getElementById('propertyAge').value || '0'),
         amenities: Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
                       .map(cb => cb.value)
     };
+
+    // Show loading state
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Calculating...';
     
     // Make API call to backend
     fetch('/tools/valuation', {
@@ -249,7 +256,12 @@ document.getElementById('valuationForm').addEventListener('submit', function(e) 
         },
         body: JSON.stringify(formData)
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
     .then(data => {
         // Update results
         document.getElementById('estimatedValue').textContent = data.estimated_value.toLocaleString();
@@ -258,46 +270,77 @@ document.getElementById('valuationForm').addEventListener('submit', function(e) 
         document.getElementById('confidenceScore').textContent = data.confidence_score;
         document.getElementById('confidenceLevel').style.width = `${data.confidence_score}%`;
         
+        // Update property details scores
+        document.getElementById('locationScore').style.width = `${data.location_score}%`;
+        document.getElementById('locationScore').setAttribute('aria-valuenow', data.location_score);
+        document.getElementById('conditionScore').style.width = `${data.condition_score}%`;
+        document.getElementById('conditionScore').setAttribute('aria-valuenow', data.condition_score);
+        
         // Show results
         document.getElementById('valuationResults').style.display = 'block';
         
-        // Initialize map
-        initMap();
+        // Initialize map with selected location coordinates
+        const locationSelect = document.getElementById('location');
+        const selectedOption = locationSelect.options[locationSelect.selectedIndex];
+        const locationText = selectedOption.text;
+        
+        // Geocode the location (you might want to store lat/lng in your database instead)
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationText + ', India')}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    const lat = parseFloat(data[0].lat);
+                    const lon = parseFloat(data[0].lon);
+                    initMap(lat, lon);
+                }
+            })
+            .catch(error => console.error('Error getting location coordinates:', error));
         
         // Smooth scroll to results
-        document.getElementById('valuationResults').scrollIntoView({ behavior: 'smooth' });
+        document.getElementById('valuationResults').scrollIntoView({ behavior: 'smooth', block: 'start' });
     })
     .catch(error => {
         console.error('Error:', error);
         alert('An error occurred while calculating the valuation. Please try again.');
+    })
+    .finally(() => {
+        // Reset button state
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Calculate Valuation';
     });
 });
 
-function initMap() {
-    // Get location coordinates (you'll need to add these to your location data)
-    const lat = 12.9716;  // Default to Bangalore
-    const lng = 77.5946;
-    
-    if (!window.propertyMap) {
-        window.propertyMap = L.map('map').setView([lat, lng], 13);
+function initMap(lat, lng) {
+    if (!propertyMap) {
+        propertyMap = L.map('map').setView([lat, lng], 13);
         
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
-        }).addTo(window.propertyMap);
+        }).addTo(propertyMap);
+    } else {
+        propertyMap.setView([lat, lng], 13);
     }
     
     // Clear existing markers
-    window.propertyMap.eachLayer((layer) => {
+    propertyMap.eachLayer((layer) => {
         if (layer instanceof L.Marker) {
-            window.propertyMap.removeLayer(layer);
+            propertyMap.removeLayer(layer);
         }
     });
     
     // Add marker for selected location
-    L.marker([lat, lng]).addTo(window.propertyMap);
+    L.marker([lat, lng]).addTo(propertyMap);
     
-    // Update map view
-    window.propertyMap.setView([lat, lng], 13);
+    // Force a map refresh
+    propertyMap.invalidateSize();
 }
+
+// Initialize progress bars with Bootstrap classes
+document.addEventListener('DOMContentLoaded', function() {
+    const progressBars = document.querySelectorAll('.progress-bar');
+    progressBars.forEach(bar => {
+        bar.classList.add('progress-bar-striped', 'progress-bar-animated', 'bg-primary');
+    });
+});
 </script>
 {% endblock %}

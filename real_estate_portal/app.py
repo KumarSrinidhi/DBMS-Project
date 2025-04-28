@@ -543,51 +543,73 @@ def loan_calculator():
 
 @app.route('/tools/valuation', methods=['GET', 'POST'])
 def property_valuation():
-    locations = IndianLocation.query.all()
-    amenities = [
-        {'id': 'swimming_pool', 'name': 'Swimming Pool'},
-        {'id': 'gym', 'name': 'Gym'},
-        {'id': 'garden', 'name': 'Garden'},
-        {'id': 'parking', 'name': 'Parking'},
-        {'id': 'security', 'name': 'Security'},
-        {'id': 'playground', 'name': 'Playground'}
-    ]
+    # Fetch actual locations and amenities from database
+    locations = IndianLocation.query.distinct(IndianLocation.city).all()
+    amenities = Amenity.query.all()
     
     if request.method == 'POST':
-        # Get valuation parameters
         data = request.get_json()
         
-        # Mock valuation calculation
+        # Get valuation parameters
         carpet_area = float(data.get('carpetArea', 0))
         location_id = int(data.get('location', 0))
         property_type = data.get('propertyType', '')
+        property_age = int(data.get('propertyAge', 0))
+        amenities_list = data.get('amenities', [])
         
-        # Base price calculation (mock logic)
+        # Base price calculation
         base_price = carpet_area * 5000  # Base rate of ₹5000 per sq ft
         
         # Location multiplier
         location = IndianLocation.query.get(location_id)
         if location:
-            if location.city.lower() in ['mumbai', 'delhi', 'bangalore']:
+            if location.city.lower() in ['mumbai', 'delhi']:
+                base_price *= 1.8
+            elif location.city.lower() in ['bangalore', 'pune', 'hyderabad']:
                 base_price *= 1.5
-            elif location.city.lower() in ['pune', 'hyderabad', 'chennai']:
+            elif location.city.lower() in ['chennai', 'kolkata']:
                 base_price *= 1.3
         
         # Property type adjustment
-        if property_type == 'villa':
-            base_price *= 1.4
-        elif property_type == 'independent':
-            base_price *= 1.2
+        type_multipliers = {
+            'apartment': 1.0,
+            'villa': 1.4,
+            'independent': 1.2,
+            'plot': 0.8
+        }
+        base_price *= type_multipliers.get(property_type, 1.0)
         
-        # Calculate range
-        min_value = base_price * 0.9
-        max_value = base_price * 1.1
+        # Age depreciation
+        if property_age > 0:
+            age_factor = max(0.6, 1 - (property_age * 0.02))  # 2% depreciation per year, minimum 60% of value
+            base_price *= age_factor
+        
+        # Amenities bonus
+        amenity_bonus = len(amenities_list) * 0.03  # 3% increase per amenity
+        base_price *= (1 + amenity_bonus)
+        
+        # Calculate confidence score based on data completeness
+        confidence_factors = [
+            bool(carpet_area),
+            bool(location_id),
+            bool(property_type),
+            bool(property_age),
+            bool(amenities_list)
+        ]
+        confidence_score = (sum(confidence_factors) / len(confidence_factors)) * 100
+        
+        # Calculate range with wider spread for lower confidence
+        spread_factor = (100 - confidence_score) / 100 + 0.1  # 10% minimum spread
+        min_value = base_price * (1 - spread_factor)
+        max_value = base_price * (1 + spread_factor)
         
         return jsonify({
-            'estimated_value': base_price,
-            'min_value': min_value,
-            'max_value': max_value,
-            'confidence_score': 85
+            'estimated_value': round(base_price),
+            'min_value': round(min_value),
+            'max_value': round(max_value),
+            'confidence_score': round(confidence_score),
+            'location_score': 80,
+            'condition_score': max(0, 100 - (property_age * 5))  # Decrease by 5% per year
         })
     
     return render_template('tools/valuation.html', 
