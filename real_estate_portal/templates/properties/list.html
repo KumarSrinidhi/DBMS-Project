@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container">
+<div class="container properties-container">
     <div class="row">
+        <!-- Filter Sidebar -->
         <div class="col-lg-3">
-            <!-- Filter Sidebar -->
-            <div class="card sticky-top" style="top: 2rem;">
+            <div class="card filters-sidebar sticky-top" style="top: 2rem;">
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">Filters</h5>
                 </div>
                 <div class="card-body">
                     <form method="get" action="{{ url_for('properties') }}">
-                        <div class="mb-3">
+                        <div class="filter-section">
                             <label class="form-label">City</label>
                             <select class="form-select" name="city">
                                 <option value="">All Cities</option>
@@ -22,7 +22,8 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="mb-3">
+                        
+                        <div class="filter-section">
                             <label class="form-label">Price Range</label>
                             <div class="price-range">
                                 <input type="range" class="form-range mb-2" id="priceRange" 
@@ -37,7 +38,8 @@
                                        value="{{ request.args.get('max_price', '') }}">
                             </div>
                         </div>
-                        <div class="mb-3">
+
+                        <div class="filter-section">
                             <label class="form-label">Property Type</label>
                             <select class="form-select" name="type">
                                 <option value="">All Types</option>
@@ -48,9 +50,10 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="mb-3">
+
+                        <div class="filter-section">
                             <label class="form-label">Furnishing</label>
-                            <div class="d-flex gap-2">
+                            <div class="furnishing-options">
                                 {% for type in ['Unfurnished', 'Semi-Furnished', 'Fully Furnished'] %}
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="furnishing" 
@@ -63,7 +66,8 @@
                                 {% endfor %}
                             </div>
                         </div>
-                        <div class="d-grid">
+
+                        <div class="d-grid mt-4">
                             <button type="submit" class="btn btn-primary">Apply Filters</button>
                         </div>
                     </form>
@@ -71,11 +75,11 @@
             </div>
         </div>
         
+        <!-- Property Listings -->
         <div class="col-lg-9">
-            <!-- Property List -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="properties-header d-flex justify-content-between align-items-center">
                 <h4 class="mb-0">{{ properties.total }} Properties Found</h4>
-                <div class="d-flex gap-2 align-items-center">
+                <div class="d-flex gap-3 align-items-center">
                     <label class="form-label mb-0">Sort by:</label>
                     <select class="form-select form-select-sm w-auto" id="sortOrder">
                         <option value="newest">Newest First</option>
