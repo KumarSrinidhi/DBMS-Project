@@ -48,7 +48,19 @@
                         <tr>
                             <td>{{ property.propertyId }}</td>
                             <td>
-                                <span class="badge bg-primary">{{ property.property_type.typeName }}</span>
+                                <div class="d-flex align-items-center">
+                                    {% if property.images %}
+                                        <img src="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/1.jpg') }}" 
+                                             class="rounded me-2" alt="Property Image"
+                                             style="width: 40px; height: 40px; object-fit: cover;"
+                                             onerror="this.src='{{ url_for('static', filename='images/properties/1.jpg') }}'">
+                                    {% else %}
+                                        <img src="{{ url_for('static', filename='images/properties/1.jpg') }}" 
+                                             class="rounded me-2" alt="Default Property Image"
+                                             style="width: 40px; height: 40px; object-fit: cover;">
+                                    {% endif %}
+                                    <span class="badge bg-primary">{{ property.property_type.typeName }}</span>
+                                </div>
                             </td>
                             <td>{{ property.location.city }}, {{ property.location.state }}</td>
                             <td>₹{{ "{:,.0f}".format(property.price) }}</td>

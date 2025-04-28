@@ -31,14 +31,15 @@
             <div class="property-gallery mb-4">
                 <div class="swiper property-swiper">
                     <div class="swiper-wrapper">
-                        {% if property.images and property.images|length > 0 %}
+                        {% if property.images %}
                             {% for image in property.images %}
                             <div class="swiper-slide">
                                 <a href="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/' ~ loop.index ~ '.jpg') }}" data-fancybox="gallery">
                                     <img src="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/' ~ loop.index ~ '.jpg') }}" 
                                          class="img-fluid w-100" 
                                          style="height: 500px; object-fit: cover; border-radius: 10px;"
-                                         alt="{{ property.property_type.typeName }}">
+                                         alt="{{ property.property_type.typeName }} - Image {{ loop.index }}"
+                                         onerror="this.src='{{ url_for('static', filename='images/properties/1.jpg') }}'">
                                 </a>
                             </div>
                             {% endfor %}

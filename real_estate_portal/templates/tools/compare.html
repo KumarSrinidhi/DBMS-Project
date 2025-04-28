@@ -74,12 +74,13 @@
         {% for property in properties %}
         <div class="col-md-4">
             <div class="card h-100">
-                <div class="property-header">
-                    {% if property.images and property.images|length > 0 %}
+                <div class="property-image mb-3">
+                    {% if property.images %}
                         <img src="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/1.jpg') }}" 
                              class="card-img-top" 
                              alt="{{ property.property_type.typeName }}"
-                             style="height: 200px; object-fit: cover;">
+                             style="height: 200px; object-fit: cover;"
+                             onerror="this.src='{{ url_for('static', filename='images/properties/1.jpg') }}'">
                     {% else %}
                         <img src="{{ url_for('static', filename='images/properties/1.jpg') }}" 
                              class="card-img-top" 

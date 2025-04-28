@@ -16,6 +16,7 @@
                             <th>Location</th>
                             <th>Price</th>
                             <th>Status</th>
+                            <th>Image</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -32,17 +33,28 @@
                                 </span>
                             </td>
                             <td>
-                                {% if property.images and property.images|length > 0 %}
+                                {% if property.images %}
                                     <img src="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/1.jpg') }}" 
-                                         class="card-img-top" alt="Property Image"
-                                         style="height: 200px; object-fit: cover;">
+                                         alt="Property Image"
+                                         style="width: 80px; height: 80px; object-fit: cover; border-radius: 5px;"
+                                         onerror="this.src='{{ url_for('static', filename='images/properties/1.jpg') }}'">
                                 {% else %}
                                     <img src="{{ url_for('static', filename='images/properties/1.jpg') }}" 
-                                         class="card-img-top" alt="Default Property Image"
-                                         style="height: 200px; object-fit: cover;">
+                                         alt="Default Property Image"
+                                         style="width: 80px; height: 80px; object-fit: cover; border-radius: 5px;">
                                 {% endif %}
-                                <a href="{{ url_for('property_detail', property_id=property.propertyId) }}" class="btn btn-sm btn-primary">View</a>
-                                <a href="#" class="btn btn-sm btn-warning">Edit</a>
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{{ url_for('property_detail', property_id=property.propertyId) }}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('edit_property', property_id=property.propertyId) }}" 
+                                       class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}

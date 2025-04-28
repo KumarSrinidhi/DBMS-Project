@@ -95,11 +95,13 @@
                 <div class="col-md-6" data-aos="fade-up" data-aos-delay="{{ loop.index * 100 }}">
                     <div class="card h-100 property-card">
                         <div class="position-relative">
-                            {% if property.images and property.images|length > 0 %}
+                            {% if property.images %}
+                                {% set primary_image = property.images|selectattr('isPrimary', 'equalto', True)|first %}
                                 <img src="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/1.jpg') }}" 
                                      class="card-img-top" 
                                      alt="{{ property.property_type.typeName }}"
-                                     style="height: 250px; object-fit: cover;">
+                                     style="height: 250px; object-fit: cover;"
+                                     onerror="this.src='{{ url_for('static', filename='images/properties/1.jpg') }}'">
                             {% else %}
                                 <img src="{{ url_for('static', filename='images/properties/1.jpg') }}" 
                                      class="card-img-top" 

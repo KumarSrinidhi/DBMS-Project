@@ -76,11 +76,17 @@
         {% for property in properties %}
         <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="{{ loop.index * 100 }}">
             <div class="card h-100">
-                {% if property.images and property.images|length > 0 %}
-                    <img src="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/1.jpg') }}" class="card-img-top" alt="Property Image"
-                         style="height: 250px; object-fit: cover;">
+                {% if property.images %}
+                    {% set primary_image = property.images|selectattr('isPrimary', 'equalto', True)|first %}
+                    <img src="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/1.jpg') }}" 
+                         class="card-img-top" 
+                         alt="{{ property.property_type.typeName }}"
+                         style="height: 250px; object-fit: cover;"
+                         onerror="this.src='{{ url_for('static', filename='images/properties/1.jpg') }}'">
                 {% else %}
-                    <img src="{{ url_for('static', filename='images/properties/1.jpg') }}" class="card-img-top" alt="Default Property Image"
+                    <img src="{{ url_for('static', filename='images/properties/1.jpg') }}" 
+                         class="card-img-top" 
+                         alt="{{ property.property_type.typeName }}"
                          style="height: 250px; object-fit: cover;">
                 {% endif %}
                 <div class="price-badge">₹{{ "{:,.0f}".format(property.price) }}</div>
