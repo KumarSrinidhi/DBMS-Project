@@ -1,16 +1,13 @@
 CREATE DATABASE Real_EstateManagement_System;
 USE Real_EstateManagement_System;
 
-
-
 /* Users with authentication  hello */
 -- Create User Roles Table
 CREATE TABLE UserRole (
     roleId INT PRIMARY KEY AUTO_INCREMENT,
     roleName VARCHAR(50) NOT NULL UNIQUE
 );
-show tables ;
-select * from users;
+
 
 
 -- Create Users Table
@@ -22,6 +19,7 @@ CREATE TABLE Users (
     mobile CHAR(10) UNIQUE,
     roleId INT NOT NULL,
     isActive BOOLEAN DEFAULT TRUE,
+    isBanned BOOLEAN DEFAULT FALSE,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (roleId) REFERENCES UserRole(roleId)
@@ -75,6 +73,8 @@ CREATE TABLE Property (
     reraRegistered BOOLEAN DEFAULT FALSE,
     isActive BOOLEAN DEFAULT TRUE,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    latitude FLOAT,
+    longitude FLOAT,
     FOREIGN KEY (typeId) REFERENCES PropertyType(typeId),
     FOREIGN KEY (locationId) REFERENCES IndianLocation(locationId),
     FOREIGN KEY (ownerId) REFERENCES Users(userId),
@@ -374,17 +374,17 @@ INSERT INTO UserRole (roleId, roleName) VALUES
 
 -- Users
 INSERT INTO Users (userId, username, password, mobile, email, roleId) VALUES
-(1, 'admin_mumbai', '$2a$10$xJwL5v5Jz5UZJz5UZJz5UeQC7vP8IW6C5F0D0C0D0C0D0C0D0C', '9820123456', 'admin@realestate.com', 1),
-(2, 'rahul_agent', '$2a$10$xJwL5v5Jz5UZJz5UZJz5Ue', '9876543210', 'rahul@metrobrokers.com', 2),
-(3, 'priya_buyer', '$2a$10$xJwL5v5Jz5UZJz5UZJz5Ue', '8888877777', 'priya.sharma@email.com', 3),
-(4, 'singh_properties', '$2a$10$xJwL5v5Jz5UZJz5UZJz5Ue', '7777766666', 'singh.properties@email.com', 4),
-(5, 'mehta_brokers', '$2a$10$xJwL5v5Jz5UZJz5UZJz5Ue', '9999955555', 'mehta@ncrproperties.com', 2),
-(6, 'kumar_tenant', '$2a$10$xJwL5v5Jz5UZJz5UZJz5Ue', '8888888888', 'kumar.tenant@email.com', 5),
-(7, 'legal_ravi', '$2a$10$xJwL5v5Jz5UZJz5UZJz5Ue', '7777777777', 'ravi@legal.com', 6),
-(8, 'tax_consult', '$2a$10$xJwL5v5Jz5UZJz5UZJz5Ue', '6666666666', 'tax@consultant.com', 7),
-(9, 'ncr_investor', '$2a$10$xJwL5v5Jz5UZJz5UZJz5Ue', '9876509876', 'investor@ncr.com', 3),
-(10, 'hyderabad_prop', '$2a$10$xJwL5v5Jz5UZJz5UZJz5Ue', '9876543211', 'owner@hyderabadprop.com', 4),
-(11, 'property_mgr', '$2a$10$xJwL5v5Jz5UZJz5UZJz5Ue', '9876543212', 'manager@realestate.com', 8);
+(1, 'admin_mumbai', 'scrypt:32768:8:1$FjPq4e2FFnmKON5e$8138e93a046aeaffa63c30e1ebb8129567ac6bf543659b3f58ae00725d6a164d3efabea767fbd36a1b9b798cb60a4e8957fcbee9304d5d590bacb72fe775e3d6', '9820123456', 'admin@realestate.com', 1),
+(2, 'rahul_agent', 'scrypt:32768:8:1$FjPq4e2FFnmKON5e$8138e93a046aeaffa63c30e1ebb8129567ac6bf543659b3f58ae00725d6a164d3efabea767fbd36a1b9b798cb60a4e8957fcbee9304d5d590bacb72fe775e3d6', '9876543210', 'rahul@metrobrokers.com', 2),
+(3, 'priya_buyer', 'scrypt:32768:8:1$FjPq4e2FFnmKON5e$8138e93a046aeaffa63c30e1ebb8129567ac6bf543659b3f58ae00725d6a164d3efabea767fbd36a1b9b798cb60a4e8957fcbee9304d5d590bacb72fe775e3d6', '8888877777', 'priya.sharma@email.com', 3),
+(4, 'singh_properties', 'scrypt:32768:8:1$FjPq4e2FFnmKON5e$8138e93a046aeaffa63c30e1ebb8129567ac6bf543659b3f58ae00725d6a164d3efabea767fbd36a1b9b798cb60a4e8957fcbee9304d5d590bacb72fe775e3d6', '7777766666', 'singh.properties@email.com', 4),
+(5, 'mehta_brokers', 'scrypt:32768:8:1$FjPq4e2FFnmKON5e$8138e93a046aeaffa63c30e1ebb8129567ac6bf543659b3f58ae00725d6a164d3efabea767fbd36a1b9b798cb60a4e8957fcbee9304d5d590bacb72fe775e3d6', '9999955555', 'mehta@ncrproperties.com', 2),
+(6, 'kumar_tenant', 'scrypt:32768:8:1$FjPq4e2FFnmKON5e$8138e93a046aeaffa63c30e1ebb8129567ac6bf543659b3f58ae00725d6a164d3efabea767fbd36a1b9b798cb60a4e8957fcbee9304d5d590bacb72fe775e3d6', '8888888888', 'kumar.tenant@email.com', 5),
+(7, 'legal_ravi', 'scrypt:32768:8:1$FjPq4e2FFnmKON5e$8138e93a046aeaffa63c30e1ebb8129567ac6bf543659b3f58ae00725d6a164d3efabea767fbd36a1b9b798cb60a4e8957fcbee9304d5d590bacb72fe775e3d6', '7777777777', 'ravi@legal.com', 6),
+(8, 'tax_consult', 'scrypt:32768:8:1$FjPq4e2FFnmKON5e$8138e93a046aeaffa63c30e1ebb8129567ac6bf543659b3f58ae00725d6a164d3efabea767fbd36a1b9b798cb60a4e8957fcbee9304d5d590bacb72fe775e3d6', '6666666666', 'tax@consultant.com', 7),
+(9, 'ncr_investor', 'scrypt:32768:8:1$FjPq4e2FFnmKON5e$8138e93a046aeaffa63c30e1ebb8129567ac6bf543659b3f58ae00725d6a164d3efabea767fbd36a1b9b798cb60a4e8957fcbee9304d5d590bacb72fe775e3d6', '9876509876', 'investor@ncr.com', 3),
+(10, 'hyderabad_prop', 'scrypt:32768:8:1$FjPq4e2FFnmKON5e$8138e93a046aeaffa63c30e1ebb8129567ac6bf543659b3f58ae00725d6a164d3efabea767fbd36a1b9b798cb60a4e8957fcbee9304d5d590bacb72fe775e3d6', '9876543211', 'owner@hyderabadprop.com', 4),
+(11, 'property_mgr', 'scrypt:32768:8:1$FjPq4e2FFnmKON5e$8138e93a046aeaffa63c30e1ebb8129567ac6bf543659b3f58ae00725d6a164d3efabea767fbd36a1b9b798cb60a4e8957fcbee9304d5d590bacb72fe775e3d6', '9876543212', 'manager@realestate.com', 8);
 
 -- Indian Identity Documents
 INSERT INTO IndianIdentity VALUES

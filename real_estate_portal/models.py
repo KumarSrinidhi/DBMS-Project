@@ -18,6 +18,7 @@ class User(UserMixin, db.Model):
     mobile = db.Column(db.String(10), unique=True)
     roleId = db.Column(db.Integer, db.ForeignKey('UserRole.roleId'), nullable=False)
     isActive = db.Column(db.Boolean, default=True)
+    isBanned = db.Column(db.Boolean, default=False)
     createdAt = db.Column(db.DateTime, server_default=db.func.now())
     updatedAt = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
     

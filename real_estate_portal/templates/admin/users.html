@@ -49,9 +49,13 @@
                                 </span>
                             </td>
                             <td>
-                                <span class="badge {% if user.isActive %}bg-success{% else %}bg-danger{% endif %}">
-                                    {{ 'Active' if user.isActive else 'Inactive' }}
-                                </span>
+                                {% if user.isBanned %}
+                                <span class="badge bg-danger">Banned</span>
+                                {% elif user.isActive %}
+                                <span class="badge bg-success">Active</span>
+                                {% else %}
+                                <span class="badge bg-warning">Inactive</span>
+                                {% endif %}
                             </td>
                             <td>{{ user.createdAt.strftime('%Y-%m-%d') }}</td>
                             <td>
@@ -61,6 +65,11 @@
                                         <i class="bi bi-pencil"></i>
                                     </a>
                                     {% if user.roleId != 1 %}
+                                    <form action="{{ url_for('admin_ban_user', user_id=user.userId) }}" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-sm {% if user.isBanned %}btn-warning{% else %}btn-danger{% endif %}">
+                                            {{ 'Unban' if user.isBanned else 'Ban' }}
+                                        </button>
+                                    </form>
                                     <button type="button" 
                                             class="btn btn-sm btn-outline-danger" 
                                             onclick="toggleUserStatus({{ user.userId }}, {{ user.isActive|tojson }})">

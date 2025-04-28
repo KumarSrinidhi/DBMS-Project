@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, abort
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from models import db, User, Property, PropertyType, IndianLocation, PropertyImages, Amenity, PropertyAmenity, UserRole
 from config import Config
@@ -290,8 +290,30 @@ def admin_users():
 def admin_properties():
     if current_user.roleId != 1:
         abort(403)
-    properties = Property.query.all()
-    return render_template('admin/properties.html', properties=properties)
+    
+    page = request.args.get('page', 1, type=int)
+    search = request.args.get('search', '')
+    
+    query = Property.query
+    
+    if search:
+        query = query.join(IndianLocation).filter(
+            or_(
+                Property.address.ilike(f'%{search}%'),
+                IndianLocation.city.ilike(f'%{search}%'),
+                IndianLocation.state.ilike(f'%{search}%')
+            )
+        )
+    
+    properties = query.paginate(
+        page=page,
+        per_page=10,
+        error_out=False
+    )
+    
+    return render_template('admin/properties.html',
+                         properties=properties,
+                         search=search)
 
 @app.route('/admin/edit_user/<int:user_id>', methods=['GET', 'POST'])
 @login_required
@@ -316,15 +338,59 @@ def admin_edit_user(user_id):
 def admin_edit_property(property_id):
     if current_user.roleId != 1:
         abort(403)
+        
     property = Property.query.get_or_404(property_id)
+    
     if request.method == 'POST':
-        property.price = float(request.form['price'])
-        property.isActive = 'isActive' in request.form
-        property.reraRegistered = 'reraRegistered' in request.form
-        db.session.commit()
-        flash('Property updated successfully', 'success')
-        return redirect(url_for('admin_properties'))
-    return render_template('admin/edit_property.html', property=property)
+        try:
+            property.address = request.form['address']
+            property.price = float(request.form['price'])
+            property.carpetArea = float(request.form['carpetArea'])
+            property.furnishingType = request.form['furnishingType']
+            property.propertyAge = int(request.form['propertyAge'])
+            property.ownershipType = request.form['ownershipType']
+            property.listingType = request.form['listingType']
+            property.isActive = 'isActive' in request.form
+            property.reraRegistered = 'reraRegistered' in request.form
+            
+            # Update location if changed
+            if 'locationId' in request.form:
+                property.locationId = int(request.form['locationId'])
+            
+            # Update property type if changed
+            if 'typeId' in request.form:
+                property.typeId = int(request.form['typeId'])
+            
+            # Update amenities
+            PropertyAmenity.query.filter_by(propertyId=property_id).delete()
+            if 'amenities' in request.form:
+                amenities = request.form.getlist('amenities')
+                for amenity_id in amenities:
+                    prop_amenity = PropertyAmenity(propertyId=property_id, amenityId=int(amenity_id))
+                    db.session.add(prop_amenity)
+            
+            db.session.commit()
+            flash('Property updated successfully', 'success')
+            return redirect(url_for('admin_properties'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating property: {str(e)}', 'danger')
+    
+    # Get data for form dropdowns
+    locations = IndianLocation.query.all()
+    property_types = PropertyType.query.all()
+    amenities = Amenity.query.all()
+    
+    # Get current property amenities
+    property_amenities = [pa.amenityId for pa in property.amenities]
+    
+    return render_template('admin/edit_property.html',
+                         property=property,
+                         locations=locations,
+                         property_types=property_types,
+                         amenities=amenities,
+                         property_amenities=property_amenities)
 
 class Favorites(db.Model):
     __tablename__ = 'Favorites'
@@ -871,6 +937,69 @@ def delete_account():
         
         flash('Your account has been deleted', 'info')
         return redirect(url_for('index'))
+
+@app.route('/admin/ban-user/<int:user_id>', methods=['POST'])
+@login_required
+def admin_ban_user(user_id):
+    if current_user.roleId != 1:  # Only admin can ban users
+        abort(403)
+    
+    user = User.query.get_or_404(user_id)
+    if user.roleId == 1:  # Cannot ban admin users
+        flash('Cannot ban admin users', 'danger')
+        return redirect(url_for('admin_users'))
+    
+    user.isBanned = not user.isBanned
+    user.isActive = not user.isBanned  # Deactivate account if banned
+    db.session.commit()
+    
+    action = 'banned' if user.isBanned else 'unbanned'
+    flash(f'User {user.username} has been {action}', 'success')
+    return redirect(url_for('admin_users'))
+
+@app.route('/admin/delete-property/<int:property_id>', methods=['POST'])
+@login_required
+def admin_delete_property(property_id):
+    if current_user.roleId != 1:  # Only admin can delete properties
+        abort(403)
+    
+    property = Property.query.get_or_404(property_id)
+    
+    # Delete associated images first
+    for image in property.images:
+        try:
+            file_path = os.path.join(app.root_path, image.imageURL.lstrip('/'))
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception as e:
+            print(f"Error deleting image file: {e}")
+    
+    # Delete property amenities
+    PropertyAmenity.query.filter_by(propertyId=property_id).delete()
+    
+    # Delete property from favorites
+    Favorites.query.filter_by(propertyId=property_id).delete()
+    
+    # Delete the property
+    db.session.delete(property)
+    db.session.commit()
+    
+    flash('Property has been deleted successfully', 'success')
+    return redirect(url_for('admin_properties'))
+
+@app.route('/admin/properties/<int:property_id>/toggle-featured', methods=['POST'])
+@login_required
+def admin_toggle_featured(property_id):
+    if current_user.roleId != 1:
+        abort(403)
+    
+    property = Property.query.get_or_404(property_id)
+    property.isFeatured = not property.isFeatured
+    db.session.commit()
+    
+    action = 'featured' if property.isFeatured else 'unfeatured'
+    flash(f'Property has been {action}', 'success')
+    return redirect(url_for('admin_properties'))
 
 if __name__ == '__main__':
     app.run(debug=True)
