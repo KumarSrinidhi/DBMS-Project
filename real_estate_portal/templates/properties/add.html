@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block styles %}
+<link rel="stylesheet" href="https://unpkg.com/dropzone@5/dist/min/dropzone.min.css" type="text/css" />
+<style>
+.map-container {
+    height: 300px;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.image-preview {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.dropzone {
+    border: 2px dashed var(--primary-color);
+    border-radius: 10px;
+    background: var(--light-gray);
+    min-height: 150px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.dropzone:hover {
+    background: white;
+}
+
+.amenity-selector {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.amenity-item {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.amenity-item:hover {
+    border-color: var(--primary-color);
+    background: var(--light-gray);
+}
+
+.amenity-item.selected {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.amenity-item img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">List Your Property</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="propertyForm" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- Basic Details -->
+                        <h5 class="mb-4">Basic Details</h5>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-12">
+                                <div class="form-floating">
+                                    {{ form.title(class="form-control", placeholder="Property Title") }}
+                                    {{ form.title.label }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    {{ form.property_type(class="form-control", placeholder="Property Type") }}
+                                    {{ form.property_type.label }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    {{ form.property_category(class="form-control", placeholder="Property Category") }}
+                                    {{ form.property_category.label }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Location Details -->
+                        <h5 class="mb-4">Location</h5>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-12">
+                                <div class="form-floating">
+                                    {{ form.location(class="form-control", placeholder="Location") }}
+                                    {{ form.location.label }}
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <div class="form-floating">
+                                    {{ form.address(class="form-control", placeholder="Address", style="height: 100px") }}
+                                    {{ form.address.label }}
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Pin Location on Map</label>
+                                <div class="map-container" id="map"></div>
+                                {{ form.latitude(type="hidden", id="latitude") }}
+                                {{ form.longitude(type="hidden", id="longitude") }}
+                            </div>
+                        </div>
+
+                        <!-- Property Details -->
+                        <h5 class="mb-4">Property Details</h5>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    {{ form.price(class="form-control", placeholder="Price") }}
+                                    {{ form.price.label }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    {{ form.carpet_area(class="form-control", placeholder="Carpet Area") }}
+                                    {{ form.carpet_area.label }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    {{ form.listing_type(class="form-control", placeholder="Listing Type") }}
+                                    {{ form.listing_type.label }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    {{ form.furnishing_type(class="form-control", placeholder="Furnishing Type") }}
+                                    {{ form.furnishing_type.label }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    {{ form.property_age(class="form-control", placeholder="Property Age") }}
+                                    {{ form.property_age.label }}
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-floating">
+                                    {{ form.description(class="form-control", placeholder="Description", style="height: 150px") }}
+                                    {{ form.description.label }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Amenities -->
+                        <h5 class="mb-4">Amenities</h5>
+                        <div class="amenity-selector mb-4">
+                            {% for value, label in form.amenities.choices %}
+                            <div class="amenity-item" data-value="{{ value }}">
+                                <img src="{{ url_for('static', filename='images/' ~ value|lower|replace(' ', '-') ~ '.png') }}" 
+                                     alt="{{ label }}">
+                                <span>{{ label }}</span>
+                                <input type="checkbox" name="amenities" value="{{ value }}" 
+                                       style="display: none;" class="amenity-checkbox">
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Property Images -->
+                        <h5 class="mb-4">Property Images</h5>
+                        <div class="dropzone mb-4" id="propertyImages">
+                            <div class="dz-message">
+                                <i class="bi bi-cloud-upload display-4 mb-3"></i>
+                                <h5>Drop files here or click to upload</h5>
+                                <p class="text-muted">Upload high-quality images of your property (Max 10 images)</p>
+                            </div>
+                        </div>
+
+                        <!-- Additional Options -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    {{ form.rera_registered(class="form-check-input") }}
+                                    {{ form.rera_registered.label(class="form-check-label") }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    {{ form.featured(class="form-check-input") }}
+                                    {{ form.featured.label(class="form-check-label") }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid">
+                            {{ form.submit(class="btn btn-primary btn-lg") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/dropzone@5/dist/min/dropzone.min.js"></script>
+<script>
+// Initialize map
+const map = L.map('map').setView([20.5937, 78.9629], 5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+let marker;
+map.on('click', function(e) {
+    const lat = e.latlng.lat;
+    const lng = e.latlng.lng;
+    
+    document.getElementById('latitude').value = lat;
+    document.getElementById('longitude').value = lng;
+    
+    if (marker) {
+        marker.setLatLng([lat, lng]);
+    } else {
+        marker = L.marker([lat, lng]).addTo(map);
+    }
+});
+
+// Initialize Dropzone
+Dropzone.options.propertyImages = {
+    url: "/upload-property-image",
+    paramName: "file",
+    maxFiles: 10,
+    maxFilesize: 5,
+    acceptedFiles: "image/*",
+    addRemoveLinks: true,
+    createImageThumbnails: true,
+    init: function() {
+        this.on("success", function(file, response) {
+            // Add hidden input with image URL
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'images[]';
+            input.value = response.imageUrl;
+            document.getElementById('propertyForm').appendChild(input);
+        });
+    }
+};
+
+// Handle amenity selection
+document.querySelectorAll('.amenity-item').forEach(item => {
+    item.addEventListener('click', function() {
+        this.classList.toggle('selected');
+        const checkbox = this.querySelector('.amenity-checkbox');
+        checkbox.checked = !checkbox.checked;
+    });
+});
+
+// Form validation
+document.getElementById('propertyForm').addEventListener('submit', function(e) {
+    const requiredFields = ['title', 'price', 'carpet_area', 'address'];
+    let isValid = true;
+    
+    requiredFields.forEach(field => {
+        const input = document.getElementById(field);
+        if (!input.value) {
+            input.classList.add('is-invalid');
+            isValid = false;
+        } else {
+            input.classList.remove('is-invalid');
+        }
+    });
+    
+    if (!isValid) {
+        e.preventDefault();
+        alert('Please fill in all required fields');
+    }
+});
+
+// Price formatting
+const priceInput = document.getElementById('price');
+priceInput.addEventListener('input', function(e) {
+    let value = this.value.replace(/[^\d]/g, '');
+    if (value) {
+        value = parseInt(value).toLocaleString('en-IN');
+        this.value = value;
+    }
+});
+</script>
+{% endblock %}

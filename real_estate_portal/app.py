@@ -1,9 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from models import db, User, Property, PropertyType, IndianLocation, PropertyImages
 from config import Config
 from forms import LoginForm, RegistrationForm, PropertyForm
 import os
+from sqlalchemy import and_, or_, not_
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -12,6 +13,13 @@ app.config.from_object(Config)
 db.init_app(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+
+# Create database tables
+def init_db():
+    with app.app_context():
+        db.create_all()
+
+init_db()
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -101,6 +109,7 @@ def upload_image(property_id):
 def logout():
     logout_user()
     return redirect(url_for('index'))
+
 @app.route('/search')
 def search():
     query = request.args.get('q', '')
@@ -112,6 +121,7 @@ def search():
         )
     ).limit(10).all()
     return render_template('search/results.html', properties=properties, query=query)
+
 @app.route('/properties')
 def properties():
     # Get filter parameters from URL
@@ -155,6 +165,30 @@ def property_detail(property_id):
                          amenities=amenities)
 
 @app.route('/add-property', methods=['GET', 'POST'])
+@login_required
+def add_property():
+    form = PropertyForm()
+    if form.validate_on_submit():
+        property = Property(
+            address=form.address.data,
+            ownerId=current_user.userId,
+            price=form.price.data,
+            carpetArea=form.carpetArea.data,
+            typeId=form.typeId.data,
+            locationId=form.locationId.data,
+            reraRegistered=form.reraRegistered.data,
+            furnishingType=form.furnishingType.data,
+            propertyAge=form.propertyAge.data,
+            ownershipType=form.ownershipType.data,
+            listingType=form.listingType.data,
+            propertyCategory=form.propertyCategory.data
+        )
+        db.session.add(property)
+        db.session.commit()
+        flash('Your property has been listed!', 'success')
+        return redirect(url_for('property_detail', property_id=property.propertyId))
+    return render_template('properties/add.html', form=form)
+
 @app.route('/dashboard')
 @login_required
 def dashboard():
@@ -169,6 +203,7 @@ def dashboard():
         return render_template('dashboard/agent.html', listings=listings)
     else:
         return render_template('dashboard/admin.html')
+
 @app.route('/admin')
 @login_required
 def admin_dashboard():
@@ -227,6 +262,87 @@ def advanced_search():
     results = query.limit(50).all()
     return jsonify([property.to_dict() for property in results])
 
+@app.route('/search')
+def search_page():
+    property_types = PropertyType.query.all()
+    return render_template('search/advanced.html', property_types=property_types)
+
+@app.route('/api/properties/search')
+def search_properties():
+    # Get search parameters
+    filters = []
+    
+    if location := request.args.get('location'):
+        filters.append(or_(
+            IndianLocation.city.ilike(f'%{location}%'),
+            IndianLocation.state.ilike(f'%{location}%'),
+            Property.address.ilike(f'%{location}%')
+        ))
+    
+    if property_type := request.args.get('type'):
+        filters.append(Property.typeId == property_type)
+    
+    if listing_type := request.args.get('listing_type'):
+        filters.append(Property.listingType == listing_type)
+    
+    if min_price := request.args.get('min_price'):
+        filters.append(Property.price >= float(min_price))
+    
+    if max_price := request.args.get('max_price'):
+        filters.append(Property.price <= float(max_price))
+    
+    if min_area := request.args.get('min_area'):
+        filters.append(Property.carpetArea >= float(min_area))
+    
+    if furnishing := request.args.get('furnishing'):
+        filters.append(Property.furnishingType == furnishing)
+    
+    if property_age := request.args.get('property_age'):
+        filters.append(Property.propertyAge == property_age)
+    
+    # Build query with joins
+    query = Property.query\
+        .join(PropertyType)\
+        .join(IndianLocation)\
+        .filter(Property.isActive == True)
+    
+    # Apply all filters
+    if filters:
+        query = query.filter(and_(*filters))
+    
+    # Apply sorting
+    sort = request.args.get('sort', 'newest')
+    if sort == 'price_low':
+        query = query.order_by(Property.price.asc())
+    elif sort == 'price_high':
+        query = query.order_by(Property.price.desc())
+    elif sort == 'area':
+        query = query.order_by(Property.carpetArea.desc())
+    else:  # newest
+        query = query.order_by(Property.createdAt.desc())
+    
+    # Execute query and format results
+    properties = query.all()
+    results = []
+    
+    for property in properties:
+        result = property.to_dict()
+        # Check for property images, use default if none exist
+        if property.images and len(property.images) > 0:
+            image_url = property.images[0].imageURL
+        else:
+            image_url = url_for('static', filename='images/1.jpg')  # Use first default image
+            
+        result.update({
+            'latitude': property.latitude,
+            'longitude': property.longitude,
+            'image_url': image_url,
+            'city': property.location.city,
+            'state': property.location.state,
+        })
+        results.append(result)
+    
+    return jsonify(results)
 
 @app.route('/favorite/<int:property_id>', methods=['POST'])
 @login_required
@@ -248,7 +364,6 @@ def toggle_favorite(property_id):
         db.session.add(new_fav)
         db.session.commit()
         return jsonify({'status': 'added'})
-
 
 @app.route('/documents/upload', methods=['POST'])
 @login_required
@@ -278,6 +393,7 @@ def upload_document():
         })
     
     return jsonify({'error': 'Invalid file'}), 400
+
 @app.route('/tools/budget-finder')
 def budget_finder():
     budget = request.args.get('budget', type=float)
@@ -300,7 +416,6 @@ def budget_finder():
     
     return render_template('tools/budget_finder.html')
 
-
 @app.route('/property/rera-check/<int:property_id>')
 def rera_check(property_id):
     property = Property.query.get_or_404(property_id)
@@ -319,10 +434,8 @@ def rera_check(property_id):
                          property=property,
                          rera_status=rera_status)
 
-
-
 @app.route('/loan/calculator', methods=['GET', 'POST'])
-def loan_calculator():
+def home_loan_calculator():
     if request.method == 'POST':
         amount = float(request.form['amount'])
         tenure = int(request.form['tenure'])
@@ -372,29 +485,88 @@ def apply_loan():
     
     return render_template('loan/application_result.html', result=bank_response)
 
-@login_required
-def add_property():
-    form = PropertyForm()
-    if form.validate_on_submit():
-        property = Property(
-            address=form.address.data,
-            ownerId=current_user.userId,
-            price=form.price.data,
-            carpetArea=form.carpetArea.data,
-            typeId=form.typeId.data,
-            locationId=form.locationId.data,
-            reraRegistered=form.reraRegistered.data,
-            furnishingType=form.furnishingType.data,
-            propertyAge=form.propertyAge.data,
-            ownershipType=form.ownershipType.data,
-            listingType=form.listingType.data,
-            propertyCategory=form.propertyCategory.data
-        )
-        db.session.add(property)
-        db.session.commit()
-        flash('Your property has been listed!', 'success')
-        return redirect(url_for('property_detail', property_id=property.propertyId))
-    return render_template('properties/add.html', form=form)
+@app.route('/tools/compare')
+def compare_properties():
+    # Get property IDs from session or query parameters
+    properties_to_compare = session.get('compare_list', [])
+    
+    # Handle adding new property to comparison
+    if add_id := request.args.get('add'):
+        if len(properties_to_compare) < 3 and int(add_id) not in properties_to_compare:
+            properties_to_compare.append(int(add_id))
+            session['compare_list'] = properties_to_compare
+    
+    # Handle removing property from comparison
+    if remove_id := request.args.get('remove'):
+        if int(remove_id) in properties_to_compare:
+            properties_to_compare.remove(int(remove_id))
+            session['compare_list'] = properties_to_compare
+    
+    # Fetch property details for comparison
+    properties = []
+    if properties_to_compare:
+        properties = Property.query\
+            .filter(Property.propertyId.in_(properties_to_compare))\
+            .all()
+    
+    return render_template('tools/compare.html', properties=properties)
+
+@app.route('/tools/loan-calculator')
+def loan_calculator():
+    return render_template('tools/loan_calculator.html')
+
+@app.route('/tools/valuation', methods=['GET', 'POST'])
+def property_valuation():
+    locations = IndianLocation.query.all()
+    amenities = [
+        {'id': 'swimming_pool', 'name': 'Swimming Pool'},
+        {'id': 'gym', 'name': 'Gym'},
+        {'id': 'garden', 'name': 'Garden'},
+        {'id': 'parking', 'name': 'Parking'},
+        {'id': 'security', 'name': 'Security'},
+        {'id': 'playground', 'name': 'Playground'}
+    ]
+    
+    if request.method == 'POST':
+        # Get valuation parameters
+        data = request.get_json()
+        
+        # Mock valuation calculation
+        carpet_area = float(data.get('carpetArea', 0))
+        location_id = int(data.get('location', 0))
+        property_type = data.get('propertyType', '')
+        
+        # Base price calculation (mock logic)
+        base_price = carpet_area * 5000  # Base rate of ₹5000 per sq ft
+        
+        # Location multiplier
+        location = IndianLocation.query.get(location_id)
+        if location:
+            if location.city.lower() in ['mumbai', 'delhi', 'bangalore']:
+                base_price *= 1.5
+            elif location.city.lower() in ['pune', 'hyderabad', 'chennai']:
+                base_price *= 1.3
+        
+        # Property type adjustment
+        if property_type == 'villa':
+            base_price *= 1.4
+        elif property_type == 'independent':
+            base_price *= 1.2
+        
+        # Calculate range
+        min_value = base_price * 0.9
+        max_value = base_price * 1.1
+        
+        return jsonify({
+            'estimated_value': base_price,
+            'min_value': min_value,
+            'max_value': max_value,
+            'confidence_score': 85
+        })
+    
+    return render_template('tools/valuation.html', 
+                         locations=locations,
+                         amenities=amenities)
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -1,95 +1,246 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-3">
-        <!-- Filter Sidebar -->
-        <div class="card">
-            <div class="card-header">Filters</div>
-            <div class="card-body">
-                <form method="get" action="{{ url_for('properties') }}">
-                    <div class="mb-3">
-                        <label class="form-label">City</label>
-                        <select class="form-select" name="city">
-                            <option value="">All Cities</option>
-                            {% for city in cities %}
-                            <option value="{{ city.city }}" {% if request.args.get('city') == city.city %}selected{% endif %}>
-                                {{ city.city }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Price Range</label>
-                        <div class="input-group">
-                            <input type="number" class="form-control" placeholder="Min" name="min_price" value="{{ request.args.get('min_price', '') }}">
-                            <input type="number" class="form-control" placeholder="Max" name="max_price" value="{{ request.args.get('max_price', '') }}">
+<div class="container">
+    <div class="row">
+        <div class="col-lg-3">
+            <!-- Filter Sidebar -->
+            <div class="card sticky-top" style="top: 2rem;">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Filters</h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" action="{{ url_for('properties') }}">
+                        <div class="mb-3">
+                            <label class="form-label">City</label>
+                            <select class="form-select" name="city">
+                                <option value="">All Cities</option>
+                                {% for city in cities %}
+                                <option value="{{ city.city }}" {% if request.args.get('city') == city.city %}selected{% endif %}>
+                                    {{ city.city }}
+                                </option>
+                                {% endfor %}
+                            </select>
                         </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Property Type</label>
-                        <select class="form-select" name="type">
-                            <option value="">All Types</option>
-                            {% for type in property_types %}
-                            <option value="{{ type.typeId }}" {% if request.args.get('type') == type.typeId|string %}selected{% endif %}>
-                                {{ type.typeName }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
-                </form>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-9">
-        <!-- Property List -->
-        <div class="row">
-            {% for property in properties.items %}
-            <div class="col-md-4 mb-4">
-                <div class="card h-100">
-                    <img src="{{ property.images[0].imageURL if property.images else url_for('static', filename='images/default-property.jpg') }}" 
-                         class="card-img-top" 
-                         style="height: 200px; object-fit: cover;">
-                    <div class="card-body">
-                        <h5 class="card-title">{{ property.property_type.typeName }}</h5>
-                        <p class="card-text">
-                            <i class="bi bi-geo-alt"></i> {{ property.location.city }}<br>
-                            <i class="bi bi-arrows-angle-expand"></i> {{ property.carpetArea }} sq.ft<br>
-                            <strong>₹{{ "{:,.0f}".format(property.price) }}</strong>
-                        </p>
-                    </div>
-                    <div class="card-footer">
-                        <a href="{{ url_for('property_detail', property_id=property.propertyId) }}" 
-                           class="btn btn-sm btn-primary">View Details</a>
-                    </div>
+                        <div class="mb-3">
+                            <label class="form-label">Price Range</label>
+                            <div class="price-range">
+                                <input type="range" class="form-range mb-2" id="priceRange" 
+                                       min="0" max="10000000" step="100000"
+                                       value="{{ request.args.get('max_price', '5000000') }}">
+                                <div class="d-flex justify-content-between">
+                                    <span>₹0</span>
+                                    <span id="priceValue">₹{{ "{:,.0f}".format(request.args.get('max_price', 5000000)|float) }}</span>
+                                    <span>₹1Cr</span>
+                                </div>
+                                <input type="hidden" name="max_price" id="maxPrice" 
+                                       value="{{ request.args.get('max_price', '') }}">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Property Type</label>
+                            <select class="form-select" name="type">
+                                <option value="">All Types</option>
+                                {% for type in property_types %}
+                                <option value="{{ type.typeId }}" {% if request.args.get('type') == type.typeId|string %}selected{% endif %}>
+                                    {{ type.typeName }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Furnishing</label>
+                            <div class="d-flex gap-2">
+                                {% for type in ['Unfurnished', 'Semi-Furnished', 'Fully Furnished'] %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="furnishing" 
+                                           value="{{ type }}" id="furnishing{{ loop.index }}"
+                                           {% if type in request.args.getlist('furnishing') %}checked{% endif %}>
+                                    <label class="form-check-label" for="furnishing{{ loop.index }}">
+                                        {{ type }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Apply Filters</button>
+                        </div>
+                    </form>
                 </div>
             </div>
-            {% endfor %}
         </div>
         
-        <!-- Pagination -->
-        <nav aria-label="Page navigation">
-            <ul class="pagination justify-content-center">
-                {% if properties.has_prev %}
-                <li class="page-item">
-                    <a class="page-link" href="{{ url_for('properties', page=properties.prev_num, **request.args) }}">Previous</a>
-                </li>
-                {% endif %}
-                
-                {% for page_num in properties.iter_pages() %}
-                <li class="page-item {% if page_num == properties.page %}active{% endif %}">
-                    <a class="page-link" href="{{ url_for('properties', page=page_num, **request.args) }}">{{ page_num }}</a>
-                </li>
+        <div class="col-lg-9">
+            <!-- Property List -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="mb-0">{{ properties.total }} Properties Found</h4>
+                <div class="d-flex gap-2 align-items-center">
+                    <label class="form-label mb-0">Sort by:</label>
+                    <select class="form-select form-select-sm w-auto" id="sortOrder">
+                        <option value="newest">Newest First</option>
+                        <option value="price_low">Price: Low to High</option>
+                        <option value="price_high">Price: High to Low</option>
+                        <option value="area">Area</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="row g-4">
+                {% for property in properties.items %}
+                <div class="col-md-6" data-aos="fade-up" data-aos-delay="{{ loop.index * 100 }}">
+                    <div class="card h-100 property-card">
+                        <div class="position-relative">
+                            {% if property.images and property.images|length > 0 %}
+                                <img src="{{ property.images[0].imageURL }}" 
+                                     class="card-img-top" 
+                                     alt="{{ property.property_type.typeName }}"
+                                     style="height: 250px; object-fit: cover;">
+                            {% else %}
+                                <img src="{{ url_for('static', filename='images/1.jpg') }}" 
+                                     class="card-img-top" 
+                                     alt="{{ property.property_type.typeName }}"
+                                     style="height: 250px; object-fit: cover;">
+                            {% endif %}
+                            <span class="position-absolute top-0 end-0 m-3 badge bg-primary">
+                                {{ property.listingType }}
+                            </span>
+                            {% if property.reraRegistered %}
+                            <span class="position-absolute top-0 start-0 m-3 badge bg-success">
+                                <i class="bi bi-patch-check-fill me-1"></i>RERA Verified
+                            </span>
+                            {% endif %}
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="card-title mb-0">{{ property.property_type.typeName }}</h5>
+                                <h5 class="text-primary mb-0">₹{{ "{:,.0f}".format(property.price) }}</h5>
+                            </div>
+                            <p class="text-muted">
+                                <i class="bi bi-geo-alt"></i> {{ property.location.city }}
+                            </p>
+                            <div class="property-features">
+                                <div class="feature-item">
+                                    <i class="bi bi-arrows-angle-expand"></i>
+                                    {{ property.carpetArea }} sq.ft
+                                </div>
+                                <div class="feature-item">
+                                    <i class="bi bi-house-door"></i>
+                                    {{ property.furnishingType }}
+                                </div>
+                                <div class="feature-item">
+                                    <i class="bi bi-calendar-check"></i>
+                                    {{ property.propertyAge }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-white border-top-0">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <a href="{{ url_for('property_detail', property_id=property.propertyId) }}" 
+                                   class="btn btn-primary">View Details</a>
+                                <button class="btn btn-outline-danger favorite-btn" 
+                                        data-property-id="{{ property.propertyId }}">
+                                    <i class="bi bi-heart"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 {% endfor %}
-                
-                {% if properties.has_next %}
-                <li class="page-item">
-                    <a class="page-link" href="{{ url_for('properties', page=properties.next_num, **request.args) }}">Next</a>
-                </li>
-                {% endif %}
-            </ul>
-        </nav>
+            </div>
+            
+            <!-- Pagination -->
+            <nav class="mt-4" aria-label="Page navigation">
+                <ul class="pagination justify-content-center">
+                    {% if properties.has_prev %}
+                    <li class="page-item">
+                        {% set args = dict(request.args) %}
+                        {% set _ = args.update({'page': properties.prev_num}) %}
+                        <a class="page-link" href="{{ url_for('properties', **args) }}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in properties.iter_pages() %}
+                    {% if page_num %}
+                    <li class="page-item {% if page_num == properties.page %}active{% endif %}">
+                        {% set args = dict(request.args) %}
+                        {% set _ = args.update({'page': page_num}) %}
+                        <a class="page-link" href="{{ url_for('properties', **args) }}">
+                            {{ page_num }}
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    {% if properties.has_next %}
+                    <li class="page-item">
+                        {% set args = dict(request.args) %}
+                        {% set _ = args.update({'page': properties.next_num}) %}
+                        <a class="page-link" href="{{ url_for('properties', **args) }}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Handle price range input
+const priceRange = document.getElementById('priceRange');
+const priceValue = document.getElementById('priceValue');
+const maxPrice = document.getElementById('maxPrice');
+
+priceRange.addEventListener('input', function() {
+    const value = parseInt(this.value);
+    maxPrice.value = value;
+    priceValue.textContent = '₹' + value.toLocaleString();
+});
+
+// Handle sort order changes
+document.getElementById('sortOrder').addEventListener('change', function() {
+    const url = new URL(window.location);
+    url.searchParams.set('sort', this.value);
+    window.location = url;
+});
+
+// Handle favorite button clicks
+document.querySelectorAll('.favorite-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const propertyId = this.dataset.propertyId;
+        const icon = this.querySelector('i');
+        
+        fetch(`/favorite/${propertyId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'added') {
+                icon.classList.remove('bi-heart');
+                icon.classList.add('bi-heart-fill');
+                this.classList.remove('btn-outline-danger');
+                this.classList.add('btn-danger');
+            } else {
+                icon.classList.remove('bi-heart-fill');
+                icon.classList.add('bi-heart');
+                this.classList.remove('btn-danger');
+                this.classList.add('btn-outline-danger');
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

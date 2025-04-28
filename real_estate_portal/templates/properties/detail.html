@@ -1,92 +1,211 @@
 {% extends "base.html" %}
 
+{% block styles %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.css"/>
+{% endblock %}
+
 {% block content %}
 <div class="row">
     <div class="col-md-8">
-        <!-- Property Images Carousel -->
-        <div id="propertyCarousel" class="carousel slide mb-4" data-bs-ride="carousel">
-            <div class="carousel-inner">
-                {% for image in property.images %}
-                <div class="carousel-item {% if loop.first %}active{% endif %}">
-                    <img src="{{ image.imageURL }}" class="d-block w-100" style="height: 500px; object-fit: cover;">
+        <!-- Property Images Gallery -->
+        <div class="property-gallery mb-4">
+            <div class="row g-2">
+                <div class="col-12">
+                    {% if property.images and property.images|length > 0 %}
+                    <a href="{{ property.images[0].imageURL }}" data-fancybox="gallery" class="gallery-main">
+                        <img src="{{ property.images[0].imageURL }}" 
+                             class="img-fluid w-100" 
+                             style="height: 400px; object-fit: cover; border-radius: 10px;"
+                             alt="{{ property.property_type.typeName }}">
+                    </a>
+                    {% else %}
+                    <img src="{{ url_for('static', filename='images/1.jpg') }}" 
+                         class="img-fluid w-100" 
+                         style="height: 400px; object-fit: cover; border-radius: 10px;"
+                         alt="{{ property.property_type.typeName }}">
+                    {% endif %}
+                </div>
+                {% if property.images and property.images|length > 1 %}
+                {% for image in property.images[1:4] %}
+                <div class="col-3">
+                    <a href="{{ image.imageURL }}" data-fancybox="gallery">
+                        <img src="{{ image.imageURL }}" 
+                             class="img-fluid w-100" 
+                             style="height: 100px; object-fit: cover; border-radius: 5px;"
+                             alt="{{ property.property_type.typeName }}">
+                    </a>
                 </div>
                 {% endfor %}
+                {% if property.images|length > 4 %}
+                <div class="col-3">
+                    <a href="{{ property.images[4].imageURL }}" 
+                       data-fancybox="gallery"
+                       class="position-relative">
+                        <img src="{{ property.images[4].imageURL }}" 
+                             class="img-fluid w-100" 
+                             style="height: 100px; object-fit: cover; border-radius: 5px;">
+                        <div class="more-photos">
+                            <span>+{{ property.images|length - 4 }}</span>
+                        </div>
+                    </a>
+                </div>
+                {% endif %}
+                {% endif %}
             </div>
-            <button class="carousel-control-prev" type="button" data-bs-target="#propertyCarousel" data-bs-slide="prev">
-                <span class="carousel-control-prev-icon"></span>
-            </button>
-            <button class="carousel-control-next" type="button" data-bs-target="#propertyCarousel" data-bs-slide="next">
-                <span class="carousel-control-next-icon"></span>
-            </button>
         </div>
 
         <!-- Property Details -->
         <div class="card mb-4">
-            <div class="card-header">
-                <h3>{{ property.property_type.typeName }} in {{ property.location.city }}</h3>
+            <div class="card-header bg-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0">{{ property.property_type.typeName }} in {{ property.location.city }}</h3>
+                    <span class="badge bg-primary">{{ property.listingType }}</span>
+                </div>
+                <p class="text-muted mb-0 mt-2">
+                    <i class="bi bi-geo-alt"></i> {{ property.address }}
+                </p>
             </div>
             <div class="card-body">
-                <h4 class="text-primary">₹{{ "{:,.0f}".format(property.price) }}</h4>
-                <p class="text-muted">{{ property.address }}</p>
-                
-                <div class="row mb-3">
-                    <div class="col-md-4">
-                        <strong>Carpet Area:</strong> {{ property.carpetArea }} sq.ft
-                    </div>
-                    <div class="col-md-4">
-                        <strong>Furnishing:</strong> {{ property.furnishingType }}
-                    </div>
-                    <div class="col-md-4">
-                        <strong>Age:</strong> {{ property.propertyAge }}
-                    </div>
+                <div class="price-section mb-4">
+                    <h4 class="text-primary mb-0">₹{{ "{:,.0f}".format(property.price) }}</h4>
+                    <small class="text-muted">{{ property.carpetArea }} sq.ft (₹{{ "{:,.0f}".format(property.price / property.carpetArea) }}/sq.ft)</small>
                 </div>
                 
-                <h5>Description</h5>
-                <p>Beautiful property located in prime location with all modern amenities...</p>
+                <div class="property-highlights mb-4">
+                    <div class="row g-3">
+                        <div class="col-6 col-md-3">
+                            <div class="highlight-item text-center p-3 rounded bg-light">
+                                <i class="bi bi-arrows-angle-expand mb-2"></i>
+                                <h6 class="mb-0">{{ property.carpetArea }} sq.ft</h6>
+                                <small class="text-muted">Carpet Area</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="highlight-item text-center p-3 rounded bg-light">
+                                <i class="bi bi-house-door mb-2"></i>
+                                <h6 class="mb-0">{{ property.furnishingType }}</h6>
+                                <small class="text-muted">Furnishing</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="highlight-item text-center p-3 rounded bg-light">
+                                <i class="bi bi-calendar-check mb-2"></i>
+                                <h6 class="mb-0">{{ property.propertyAge }}</h6>
+                                <small class="text-muted">Age</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="highlight-item text-center p-3 rounded bg-light">
+                                <i class="bi bi-building mb-2"></i>
+                                <h6 class="mb-0">{{ property.ownershipType }}</h6>
+                                <small class="text-muted">Ownership</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Amenities Section -->
+                {% include 'includes/amenities.html' %}
+                
+                <h5 class="mt-4 mb-3">About This Property</h5>
+                <p>Beautiful property located in prime location with all modern amenities. Close to schools, shopping centers, and public transport.</p>
+            </div>
+        </div>
+
+        <!-- Location Map -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Location</h5>
+            </div>
+            <div class="card-body p-0">
+                <div id="map" style="height: 300px;"></div>
             </div>
         </div>
     </div>
     
     <div class="col-md-4">
         <!-- Contact Form -->
-        <div class="card mb-4">
+        <div class="card mb-4 sticky-top" style="top: 2rem;">
             <div class="card-header bg-primary text-white">
-                <h5>Contact Owner</h5>
+                <h5 class="mb-0">Contact {{ property.owner.username }}</h5>
             </div>
             <div class="card-body">
-                <form>
+                <form class="contact-form">
                     <div class="mb-3">
-                        <input type="text" class="form-control" placeholder="Your Name">
+                        <label class="form-label">Your Name</label>
+                        <input type="text" class="form-control" placeholder="Enter your name">
                     </div>
                     <div class="mb-3">
-                        <input type="email" class="form-control" placeholder="Your Email">
+                        <label class="form-label">Your Email</label>
+                        <input type="email" class="form-control" placeholder="Enter your email">
                     </div>
                     <div class="mb-3">
-                        <input type="tel" class="form-control" placeholder="Phone Number">
+                        <label class="form-label">Phone Number</label>
+                        <input type="tel" class="form-control" placeholder="Enter your phone number">
                     </div>
                     <div class="mb-3">
-                        <textarea class="form-control" rows="3" placeholder="Your Message"></textarea>
+                        <label class="form-label">Message</label>
+                        <textarea class="form-control" rows="4" placeholder="I'm interested in this property..."></textarea>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">Send Inquiry</button>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-send me-2"></i>Send Inquiry
+                        </button>
+                        <a href="tel:+1234567890" class="btn btn-outline-primary">
+                            <i class="bi bi-telephone me-2"></i>Call Now
+                        </a>
+                    </div>
                 </form>
-            </div>
-        </div>
-        
-        <!-- Amenities -->
-        <div class="card">
-            <div class="card-header">
-                <h5>Amenities</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    {% for amenity in amenities %}
-                    <div class="col-6 mb-2">
-                        <i class="bi bi-check-circle text-success"></i> {{ amenity.name }}
-                    </div>
-                    {% endfor %}
-                </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.umd.js"></script>
+<script>
+    // Initialize Fancybox
+    Fancybox.bind("[data-fancybox]", {
+        // Your custom options
+    });
+
+    // Initialize map (you'll need to replace with your preferred map provider)
+    // This is a placeholder using OpenStreetMap
+    const map = L.map('map').setView([12.9716, 77.5946], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    L.marker([12.9716, 77.5946]).addTo(map);
+</script>
+
+<style>
+.more-photos {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+    font-weight: bold;
+    border-radius: 5px;
+}
+
+.highlight-item {
+    transition: transform 0.2s ease;
+}
+
+.highlight-item:hover {
+    transform: translateY(-5px);
+}
+
+.highlight-item i {
+    font-size: 1.5rem;
+    color: var(--primary-color);
+    display: block;
+}
+</style>
 {% endblock %}

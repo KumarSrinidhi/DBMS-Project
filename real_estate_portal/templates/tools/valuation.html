@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block styles %}
+<style>
+.valuation-tool {
+    border-radius: 15px;
+    box-shadow: var(--shadow);
+    background: white;
+}
+
+.valuation-result {
+    background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    border-radius: 10px;
+    padding: 2rem;
+    margin: 1rem 0;
+}
+
+.factor-card {
+    border-radius: 10px;
+    border: 1px solid #eee;
+    transition: var(--transition);
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.factor-card:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+}
+
+.confidence-meter {
+    height: 8px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    margin-top: 0.5rem;
+}
+
+.confidence-level {
+    height: 100%;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.8);
+    transition: width 0.3s ease;
+}
+
+#map {
+    height: 300px;
+    border-radius: 10px;
+    margin: 1rem 0;
+}
+</style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card valuation-tool">
+                <div class="card-body">
+                    <h3 class="card-title mb-4">Property Valuation Tool</h3>
+                    
+                    <!-- Valuation Form -->
+                    <form id="valuationForm">
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Property Type</label>
+                                <select class="form-select" id="propertyType" required>
+                                    <option value="">Select property type</option>
+                                    <option value="apartment">Apartment</option>
+                                    <option value="villa">Villa</option>
+                                    <option value="independent">Independent House</option>
+                                    <option value="plot">Plot</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label class="form-label">Location</label>
+                                <select class="form-select" id="location" required>
+                                    <option value="">Select location</option>
+                                    {% for location in locations %}
+                                    <option value="{{ location.id }}">{{ location.city }} - {{ location.area }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Carpet Area (sq ft)</label>
+                                <input type="number" class="form-control" id="carpetArea" 
+                                       placeholder="Enter carpet area" required min="100">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Age of Property (years)</label>
+                                <input type="number" class="form-control" id="propertyAge" 
+                                       placeholder="Enter property age" min="0" max="100">
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">Amenities</label>
+                                <div class="row g-3">
+                                    {% for amenity in amenities %}
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   id="{{ amenity.id }}" value="{{ amenity.id }}">
+                                            <label class="form-check-label" for="{{ amenity.id }}">
+                                                {{ amenity.name }}
+                                            </label>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary w-100">Calculate Valuation</button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Results Section (initially hidden) -->
+                    <div id="valuationResults" style="display: none;">
+                        <div class="valuation-result mt-4">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <h4 class="mb-3">Estimated Property Value</h4>
+                                    <h2 class="mb-3">₹<span id="estimatedValue">0</span></h2>
+                                    <div class="d-flex align-items-center">
+                                        <span class="me-2">Confidence Score:</span>
+                                        <span id="confidenceScore">0</span>%
+                                        <div class="confidence-meter ms-3 flex-grow-1">
+                                            <div class="confidence-level" id="confidenceLevel"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-md-end">
+                                    <div class="mb-2">
+                                        <small>Value Range</small>
+                                        <div>₹<span id="minValue">0</span></div>
+                                        <div>to</div>
+                                        <div>₹<span id="maxValue">0</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Property Details -->
+                        <div class="mt-4">
+                            <h5>Property Details</h5>
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <div class="factor-card">
+                                        <h6>Location Score</h6>
+                                        <div class="progress">
+                                            <div class="progress-bar" id="locationScore" role="progressbar"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="factor-card">
+                                        <h6>Property Condition</h6>
+                                        <div class="progress">
+                                            <div class="progress-bar" id="conditionScore" role="progressbar"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Map View -->
+                        <div id="map"></div>
+
+                        <!-- Market Analysis -->
+                        <div class="mt-4">
+                            <h5>Market Analysis</h5>
+                            <div class="row g-4">
+                                <div class="col-md-4">
+                                    <div class="factor-card text-center">
+                                        <h6>Price Trend</h6>
+                                        <div id="priceTrend" class="display-6">
+                                            <i class="bi bi-arrow-up-right text-success"></i>
+                                        </div>
+                                        <small class="text-muted">Increasing</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="factor-card text-center">
+                                        <h6>Market Demand</h6>
+                                        <div id="marketDemand" class="display-6">
+                                            <i class="bi bi-graph-up text-primary"></i>
+                                        </div>
+                                        <small class="text-muted">High</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="factor-card text-center">
+                                        <h6>Future Potential</h6>
+                                        <div id="futurePotential" class="display-6">
+                                            <i class="bi bi-star-fill text-warning"></i>
+                                        </div>
+                                        <small class="text-muted">Excellent</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Information -->
+            <div class="mt-4">
+                <h5>How Property Valuation Works?</h5>
+                <p>Our property valuation tool uses advanced algorithms and machine learning to estimate property values based on various factors:</p>
+                <ul>
+                    <li>Location and neighborhood analysis</li>
+                    <li>Property size and specifications</li>
+                    <li>Recent transactions in the area</li>
+                    <li>Market trends and demand</li>
+                    <li>Property condition and age</li>
+                    <li>Available amenities</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+document.getElementById('valuationForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = {
+        propertyType: document.getElementById('propertyType').value,
+        location: document.getElementById('location').value,
+        carpetArea: document.getElementById('carpetArea').value,
+        propertyAge: document.getElementById('propertyAge').value,
+        amenities: Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
+                      .map(cb => cb.value)
+    };
+    
+    // Make API call to backend
+    fetch('/tools/valuation', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Update results
+        document.getElementById('estimatedValue').textContent = data.estimated_value.toLocaleString();
+        document.getElementById('minValue').textContent = data.min_value.toLocaleString();
+        document.getElementById('maxValue').textContent = data.max_value.toLocaleString();
+        document.getElementById('confidenceScore').textContent = data.confidence_score;
+        document.getElementById('confidenceLevel').style.width = `${data.confidence_score}%`;
+        
+        // Show results
+        document.getElementById('valuationResults').style.display = 'block';
+        
+        // Initialize map
+        initMap();
+        
+        // Smooth scroll to results
+        document.getElementById('valuationResults').scrollIntoView({ behavior: 'smooth' });
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while calculating the valuation. Please try again.');
+    });
+});
+
+function initMap() {
+    // Get location coordinates (you'll need to add these to your location data)
+    const lat = 12.9716;  // Default to Bangalore
+    const lng = 77.5946;
+    
+    if (!window.propertyMap) {
+        window.propertyMap = L.map('map').setView([lat, lng], 13);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(window.propertyMap);
+    }
+    
+    // Clear existing markers
+    window.propertyMap.eachLayer((layer) => {
+        if (layer instanceof L.Marker) {
+            window.propertyMap.removeLayer(layer);
+        }
+    });
+    
+    // Add marker for selected location
+    L.marker([lat, lng]).addTo(window.propertyMap);
+    
+    // Update map view
+    window.propertyMap.setView([lat, lng], 13);
+}
+</script>
+{% endblock %}

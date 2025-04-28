@@ -1,63 +1,316 @@
-<!-- templates/tools/compare.html -->
-<div class="comparison-tool">
-    <div class="row">
-        <div class="col-md-6">
-            <select class="form-select compare-select" data-side="left">
-                <option value="">Select Property 1</option>
-                {% for prop in recent_properties %}
-                <option value="{{ prop.propertyId }}">{{ prop.property_type.typeName }} in {{ prop.location.city }}</option>
-                {% endfor %}
-            </select>
-            <div id="compare-left" class="comparison-panel mt-3"></div>
-        </div>
-        <div class="col-md-6">
-            <select class="form-select compare-select" data-side="right">
-                <option value="">Select Property 2</option>
-                {% for prop in recent_properties %}
-                <option value="{{ prop.propertyId }}">{{ prop.property_type.typeName }} in {{ prop.location.city }}</option>
-                {% endfor %}
-            </select>
-            <div id="compare-right" class="comparison-panel mt-3"></div>
-        </div>
+{% extends "base.html" %}
+
+{% block styles %}
+<style>
+.comparison-table th {
+    min-width: 180px;
+}
+
+.property-header {
+    position: relative;
+}
+
+.remove-property {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+    color: var(--primary-color);
+}
+
+.remove-property:hover {
+    background: var(--secondary-color);
+    color: white;
+}
+
+.add-property-card {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--light-gray);
+    border: 2px dashed #ccc;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.add-property-card:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.difference-better {
+    color: #28a745;
+    font-weight: 500;
+}
+
+.difference-worse {
+    color: #dc3545;
+    font-weight: 500;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3>Compare Properties</h3>
+        <button class="btn btn-outline-primary" id="addPropertyBtn">
+            <i class="bi bi-plus-lg me-2"></i>Add Property
+        </button>
     </div>
-    
-    <div class="comparison-summary mt-4">
-        <h4>Comparison Summary</h4>
-        <table class="table table-bordered">
+
+    <!-- Property Cards -->
+    <div class="row g-4 mb-5">
+        {% for property in properties %}
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="property-header">
+                    {% if property.images and property.images|length > 0 %}
+                        <img src="{{ property.images[0].imageURL }}" 
+                             class="card-img-top" 
+                             alt="{{ property.property_type.typeName }}"
+                             style="height: 200px; object-fit: cover;">
+                    {% else %}
+                        <img src="{{ url_for('static', filename='images/1.jpg') }}" 
+                             class="card-img-top" 
+                             alt="{{ property.property_type.typeName }}"
+                             style="height: 200px; object-fit: cover;">
+                    {% endif %}
+                    <span class="remove-property" onclick="removeProperty({{ property.propertyId }})">
+                        <i class="bi bi-x-lg"></i>
+                    </span>
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ property.property_type.typeName }}</h5>
+                    <p class="text-muted">
+                        <i class="bi bi-geo-alt"></i> {{ property.location.city }}
+                    </p>
+                    <div class="price-section">
+                        <h4 class="text-primary mb-1">₹{{ "{:,.0f}".format(property.price) }}</h4>
+                        <small class="text-muted">₹{{ "{:,.0f}".format(property.price / property.carpetArea) }}/sq.ft</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% if properties|length < 3 %}
+        <div class="col-md-4">
+            <div class="add-property-card" data-bs-toggle="modal" data-bs-target="#addPropertyModal">
+                <div class="text-center">
+                    <i class="bi bi-plus-circle display-4 mb-2"></i>
+                    <h5>Add Property</h5>
+                    <p class="text-muted">Compare up to 3 properties</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Comparison Table -->
+    <div class="table-responsive">
+        <table class="table comparison-table">
             <thead>
                 <tr>
-                    <th>Parameter</th>
-                    <th>Property 1</th>
-                    <th>Property 2</th>
+                    <th>Feature</th>
+                    {% for property in properties %}
+                    <th>{{ property.property_type.typeName }}</th>
+                    {% endfor %}
                 </tr>
             </thead>
-            <tbody id="comparison-results">
-                <!-- Filled by JavaScript -->
+            <tbody>
+                <tr>
+                    <td>Price</td>
+                    {% for property in properties %}
+                    <td>₹{{ "{:,.0f}".format(property.price) }}</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td>Price per sq.ft</td>
+                    {% for property in properties %}
+                    <td>₹{{ "{:,.0f}".format(property.price / property.carpetArea) }}</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td>Area</td>
+                    {% for property in properties %}
+                    <td>{{ property.carpetArea }} sq.ft</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td>Type</td>
+                    {% for property in properties %}
+                    <td>{{ property.property_type.typeName }}</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td>Location</td>
+                    {% for property in properties %}
+                    <td>{{ property.location.city }}, {{ property.location.state }}</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td>Furnishing</td>
+                    {% for property in properties %}
+                    <td>{{ property.furnishingType }}</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td>Age</td>
+                    {% for property in properties %}
+                    <td>{{ property.propertyAge }}</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td>Ownership</td>
+                    {% for property in properties %}
+                    <td>{{ property.ownershipType }}</td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td>RERA Status</td>
+                    {% for property in properties %}
+                    <td>
+                        {% if property.reraRegistered %}
+                        <span class="badge bg-success">
+                            <i class="bi bi-check-circle me-1"></i>Verified
+                        </span>
+                        {% else %}
+                        <span class="badge bg-warning">
+                            <i class="bi bi-exclamation-triangle me-1"></i>Not Verified
+                        </span>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                <tr>
+                    <td>Amenities</td>
+                    {% for property in properties %}
+                    <td>
+                        <div class="amenities-list">
+                            {% for amenity in property.amenities %}
+                            <div class="amenity-item mb-1">
+                                <img src="{{ url_for('static', filename='images/' ~ amenity.name|lower ~ '.png') }}" 
+                                     alt="{{ amenity.name }}" width="16" height="16" class="me-1"
+                                     onerror="this.src='{{ url_for('static', filename='images/1.jpg') }}'">
+                                {{ amenity.name }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </td>
+                    {% endfor %}
+                </tr>
             </tbody>
         </table>
     </div>
 </div>
 
+<!-- Add Property Modal -->
+<div class="modal fade" id="addPropertyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Property to Compare</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="propertySearch" 
+                           placeholder="Search properties by location or type...">
+                </div>
+                <div class="row g-4" id="propertySearchResults">
+                    <!-- Search results will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script>
-$('.compare-select').change(function() {
-    const side = $(this).data('side');
-    const propertyId = $(this).val();
+// Handle property search
+let searchTimeout;
+document.getElementById('propertySearch').addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    const query = this.value;
     
-    if (propertyId) {
-        $.get(`/api/properties/${propertyId}`, function(data) {
-            $(`#compare-${side}`).html(`
-                <h4>${data.type} in ${data.city}</h4>
-                <p>Price: ₹${data.price.toLocaleString()}</p>
-                <p>Area: ${data.area} sq.ft</p>
-                <!-- More details -->
-            `);
-            
-            updateComparison();
-        });
-    }
+    searchTimeout = setTimeout(() => {
+        if (query.length >= 2) {
+            fetch(`/api/properties/search?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    const resultsContainer = document.getElementById('propertySearchResults');
+                    resultsContainer.innerHTML = '';
+                    
+                    data.forEach(property => {
+                        const propertyCard = document.createElement('div');
+                        propertyCard.className = 'col-md-6';
+                        propertyCard.innerHTML = `
+                            <div class="card">
+                                <img src="${property.image_url || '{{ url_for('static', filename='images/1.jpg') }}'}" 
+                                     class="card-img-top" 
+                                     alt="${property.type}"
+                                     style="height: 150px; object-fit: cover;">
+                                <div class="card-body">
+                                    <h6 class="card-title">${property.type}</h6>
+                                    <p class="card-text">
+                                        <i class="bi bi-geo-alt"></i> ${property.city}<br>
+                                        <strong>₹${property.price.toLocaleString()}</strong>
+                                    </p>
+                                    <button onclick="addToComparison(${property.id})" 
+                                            class="btn btn-primary btn-sm">
+                                        Add to Compare
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        resultsContainer.appendChild(propertyCard);
+                    });
+                });
+        }
+    }, 500);
 });
 
-function updateComparison() {
-    // Compare both selected properties
+function addToComparison(propertyId) {
+    window.location.href = `/tools/compare?add=${propertyId}`;
 }
+
+function removeProperty(propertyId) {
+    window.location.href = `/tools/compare?remove=${propertyId}`;
+}
+
+// Highlight differences
+document.addEventListener('DOMContentLoaded', function() {
+    const table = document.querySelector('.comparison-table');
+    const rows = table.querySelectorAll('tbody tr');
+    
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td:not(:first-child)');
+        if (cells.length > 1) {
+            const values = Array.from(cells).map(cell => cell.textContent.trim());
+            const numericValues = values.map(v => parseFloat(v.replace(/[₹,]/g, '')));
+            
+            if (!isNaN(numericValues[0])) {
+                // For numeric values (price, area)
+                const best = Math.min(...numericValues);
+                cells.forEach((cell, index) => {
+                    if (numericValues[index] === best) {
+                        cell.classList.add('difference-better');
+                    }
+                });
+            }
+        }
+    });
+});
 </script>
+{% endblock %}

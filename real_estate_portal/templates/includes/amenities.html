@@ -3,16 +3,24 @@
     <h5>Amenities</h5>
     <div class="amenities-grid">
         {% set amenities_icons = {
-            'Swimming Pool': 'bi-water',
-            'Gym': 'bi-activity',
-            'Park': 'bi-tree',
-            'Security': 'bi-shield-lock',
-            'Power Backup': 'bi-lightning'
+            'Swimming Pool': 'swimming-pool.png',
+            'Gym': 'gym.png',
+            'Garden': 'garden.png',
+            'Parking': 'parking.png',
+            'Security': 'security.png',
+            'Playground': 'playground.png'
         } %}
         
         {% for amenity in property.amenities %}
         <div class="amenity-item">
-            <i class="bi {{ amenities_icons.get(amenity.name, 'bi-check-circle') }}"></i>
+            {% if amenity.name in amenities_icons %}
+                <img src="{{ url_for('static', filename='images/' + amenities_icons[amenity.name]) }}" 
+                     alt="{{ amenity.name }}" 
+                     width="24" 
+                     height="24">
+            {% else %}
+                <i class="bi bi-check-circle"></i>
+            {% endif %}
             <span>{{ amenity.name }}</span>
         </div>
         {% endfor %}
@@ -22,12 +30,28 @@
 <style>
 .amenities-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
 }
+
 .amenity-item {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--light-gray);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    transition: transform 0.2s ease;
+}
+
+.amenity-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.amenity-item img {
+    object-fit: contain;
 }
 </style>

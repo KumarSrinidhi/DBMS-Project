@@ -45,6 +45,12 @@ class IndianLocation(db.Model):
     pincode = db.Column(db.String(6))
     reraZone = db.Column(db.String(50))
 
+class PropertyAmenity(db.Model):
+    __tablename__ = 'PropertyAmenities'
+    propertyId = db.Column(db.Integer, db.ForeignKey('Property.propertyId'), primary_key=True)
+    amenityName = db.Column(db.String(50), primary_key=True)
+    description = db.Column(db.String(255))
+
 class Property(db.Model):
     __tablename__ = 'Property'
     propertyId = db.Column(db.Integer, primary_key=True)
@@ -62,19 +68,35 @@ class Property(db.Model):
     ownershipType = db.Column(db.Enum('Freehold', 'Leasehold'), default='Freehold')
     listingType = db.Column(db.Enum('Buy', 'Sell', 'Rent', 'New Projects'), default='Sell')
     propertyCategory = db.Column(db.Enum('Residential', 'Commercial', 'Agricultural'), default='Residential')
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
     
     owner = db.relationship('User', backref='properties')
     property_type = db.relationship('PropertyType', backref='properties')
     location = db.relationship('IndianLocation', backref='properties')
     
+    # Add relationship to amenities
+    amenities = db.relationship('PropertyAmenity', backref='property', lazy='dynamic')
+    
     def to_dict(self):
+        amenities_list = [{'name': a.amenityName, 'description': a.description} 
+                         for a in self.amenities]
         return {
             'id': self.propertyId,
             'type': self.property_type.typeName,
             'price': float(self.price),
             'city': self.location.city,
+            'state': self.location.state,
             'area': self.carpetArea,
-            'bedrooms': getattr(self, 'residential_property', None) and getattr(self.residential_property, 'bedrooms', None),
+            'furnishing': self.furnishingType,
+            'age': self.propertyAge,
+            'listing_type': self.listingType,
+            'amenities': amenities_list,
+            'latitude': self.latitude,
+            'longitude': self.longitude,
+            'address': self.address,
+            'rera_registered': self.reraRegistered,
+            'ownership_type': self.ownershipType
         }
 
 class PropertyImages(db.Model):

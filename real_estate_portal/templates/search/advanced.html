@@ -1,76 +1,339 @@
-<!-- templates/search/advanced.html -->
-<div class="search-container">
-    <div class="row">
-        <div class="col-md-3">
-            <div class="filter-card">
-                <h5>Property Type</h5>
-                <select class="form-select" id="propertyType">
-                    <option value="">All Types</option>
-                    {% for type in property_types %}
-                    <option value="{{ type.typeId }}">{{ type.typeName }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            
-            <div class="filter-card">
-                <h5>Budget (₹)</h5>
-                <div class="range-slider">
-                    <input type="range" class="form-range" min="0" max="50000000" step="500000" id="minPrice">
-                    <input type="range" class="form-range" min="0" max="50000000" step="500000" id="maxPrice">
-                    <div class="range-values">
-                        <span id="minPriceValue">0</span> - 
-                        <span id="maxPriceValue">5 Cr+</span>
+{% extends "base.html" %}
+
+{% block styles %}
+<link rel="stylesheet" href="https://unpkg.com/nouislider@15.7.1/dist/nouislider.min.css"/>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="search-container mb-5">
+        <!-- Advanced Search Form -->
+        <div class="card search-form" data-aos="fade-up">
+            <div class="card-body">
+                <form id="advancedSearchForm" class="row g-3">
+                    <div class="col-md-4">
+                        <div class="form-floating">
+                            <input type="text" class="form-control" id="location" name="location" placeholder="Enter location">
+                            <label for="location">Location</label>
+                        </div>
                     </div>
+                    <div class="col-md-4">
+                        <div class="form-floating">
+                            <select class="form-select" id="propertyType" name="type">
+                                <option value="">All Types</option>
+                                {% for type in property_types %}
+                                <option value="{{ type.typeId }}">{{ type.typeName }}</option>
+                                {% endfor %}
+                            </select>
+                            <label for="propertyType">Property Type</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-floating">
+                            <select class="form-select" id="listingType" name="listing_type">
+                                <option value="">All Listings</option>
+                                <option value="Buy">Buy</option>
+                                <option value="Rent">Rent</option>
+                                <option value="New Projects">New Projects</option>
+                            </select>
+                            <label for="listingType">Listing Type</label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12">
+                        <label class="form-label">Price Range (₹)</label>
+                        <div id="priceRange"></div>
+                        <div class="d-flex justify-content-between mt-2">
+                            <span id="priceMin">₹0</span>
+                            <span id="priceMax">₹5Cr</span>
+                        </div>
+                        <input type="hidden" name="min_price" id="minPrice">
+                        <input type="hidden" name="max_price" id="maxPrice">
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="form-floating">
+                            <input type="number" class="form-control" id="minArea" name="min_area" placeholder="Min Area">
+                            <label for="minArea">Min Area (sq.ft)</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-floating">
+                            <select class="form-select" id="furnishing" name="furnishing">
+                                <option value="">Any Furnishing</option>
+                                <option value="Unfurnished">Unfurnished</option>
+                                <option value="Semi-Furnished">Semi-Furnished</option>
+                                <option value="Fully Furnished">Fully Furnished</option>
+                            </select>
+                            <label for="furnishing">Furnishing</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-floating">
+                            <select class="form-select" id="propertyAge" name="property_age">
+                                <option value="">Any Age</option>
+                                <option value="New">New Construction</option>
+                                <option value="1-5 years">1-5 Years</option>
+                                <option value="5-10 years">5-10 Years</option>
+                                <option value="10+ years">10+ Years</option>
+                            </select>
+                            <label for="propertyAge">Property Age</label>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <h6 class="mb-3">Amenities</h6>
+                        <div class="row row-cols-2 row-cols-md-4 g-3">
+                            {% set amenities = [
+                                ('Swimming Pool', 'swimming-pool.png'),
+                                ('Gym', 'gym.png'),
+                                ('Garden', 'garden.png'),
+                                ('Parking', 'parking.png'),
+                                ('Security', 'security.png'),
+                                ('Playground', 'playground.png')
+                            ] %}
+                            {% for amenity, icon in amenities %}
+                            <div class="col">
+                                <div class="form-check custom-checkbox">
+                                    <input class="form-check-input" type="checkbox" 
+                                           name="amenities" value="{{ amenity }}" 
+                                           id="amenity{{ loop.index }}">
+                                    <label class="form-check-label d-flex align-items-center gap-2" 
+                                           for="amenity{{ loop.index }}">
+                                        <img src="{{ url_for('static', filename='images/' + icon) }}" 
+                                             alt="{{ amenity }}" width="24" height="24">
+                                        {{ amenity }}
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="col-12 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary flex-grow-1">
+                            <i class="bi bi-search me-2"></i>Search Properties
+                        </button>
+                        <button type="reset" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-counterclockwise me-2"></i>Reset
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Search Results -->
+        <div class="mt-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="mb-0">Search Results <span id="resultCount" class="text-muted"></span></h4>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary btn-sm" id="mapViewBtn">
+                        <i class="bi bi-map me-2"></i>Map View
+                    </button>
+                    <select class="form-select form-select-sm" style="width: auto;" id="sortOrder">
+                        <option value="newest">Newest First</option>
+                        <option value="price_low">Price: Low to High</option>
+                        <option value="price_high">Price: High to Low</option>
+                        <option value="area">Area: Largest First</option>
+                    </select>
                 </div>
             </div>
-            
-            <!-- Add similar sections for other filters -->
-        </div>
-        
-        <div class="col-md-9">
-            <div id="map-container" style="height: 400px;"></div>
-            <div id="search-results" class="mt-4">
-                <!-- Results will load here via AJAX -->
+
+            <!-- Results Grid/Map Toggle -->
+            <div class="row">
+                <div class="col-12" id="mapView" style="display: none;">
+                    <div id="resultsMap" style="height: 600px;" class="mb-4"></div>
+                </div>
+                <div class="col-12" id="gridView">
+                    <div id="searchResults" class="row g-4">
+                        <!-- Results will be loaded here via AJAX -->
+                    </div>
+                    <div id="loadingSpinner" class="text-center my-5" style="display: none;">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<script>
-// Initialize map with Leaflet.js
-const map = L.map('map-container').setView([20.5937, 78.9629], 5);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+<!-- Property Preview Modal -->
+<div class="modal fade" id="propertyPreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Property Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Property preview content will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
 
-// AJAX search function
-function performSearch() {
-    const filters = {
-        type_id: $('#propertyType').val(),
-        min_price: $('#minPrice').val(),
-        max_price: $('#maxPrice').val()
-        // Add other filter values
-    };
+{% block scripts %}
+<script src="https://unpkg.com/nouislider@15.7.1/dist/nouislider.min.js"></script>
+<script>
+// Initialize price range slider
+const priceRange = document.getElementById('priceRange');
+noUiSlider.create(priceRange, {
+    start: [0, 50000000],
+    connect: true,
+    range: {
+        'min': 0,
+        'max': 50000000
+    },
+    step: 100000,
+    format: {
+        to: value => parseInt(value).toLocaleString('en-IN', {
+            style: 'currency',
+            currency: 'INR',
+            maximumFractionDigits: 0
+        }),
+        from: value => parseInt(value.replace(/[₹,]/g, ''))
+    }
+});
+
+priceRange.noUiSlider.on('update', function(values) {
+    document.getElementById('priceMin').textContent = values[0];
+    document.getElementById('priceMax').textContent = values[1];
+    document.getElementById('minPrice').value = values[0].replace(/[₹,]/g, '');
+    document.getElementById('maxPrice').value = values[1].replace(/[₹,]/g, '');
+});
+
+// Initialize map
+const map = L.map('resultsMap').setView([20.5937, 78.9629], 5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+const markers = L.markerClusterGroup();
+map.addLayer(markers);
+
+// Toggle map/grid view
+document.getElementById('mapViewBtn').addEventListener('click', function() {
+    const isMapView = this.classList.contains('active');
+    this.classList.toggle('active');
+    this.innerHTML = isMapView ? 
+        '<i class="bi bi-map me-2"></i>Map View' : 
+        '<i class="bi bi-grid me-2"></i>Grid View';
+    document.getElementById('mapView').style.display = isMapView ? 'none' : 'block';
+    document.getElementById('gridView').style.display = isMapView ? 'block' : 'none';
+    if (!isMapView) map.invalidateSize();
+});
+
+// Handle form submission
+document.getElementById('advancedSearchForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const searchParams = new URLSearchParams(formData);
     
-    $.get('/api/properties/search', filters, function(data) {
-        $('#search-results').empty();
-        data.forEach(property => {
-            $('#search-results').append(`
-                <div class="property-card">
-                    <h3>${property.type} in ${property.city}</h3>
-                    <p>₹${property.price.toLocaleString()}</p>
-                    <!-- Add more details -->
-                </div>
-            `);
+    document.getElementById('loadingSpinner').style.display = 'block';
+    document.getElementById('searchResults').innerHTML = '';
+    markers.clearLayers();
+    
+    fetch(`/api/properties/search?${searchParams.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('resultCount').textContent = `(${data.length} found)`;
+            document.getElementById('loadingSpinner').style.display = 'none';
             
-            // Add marker to map
-            L.marker([property.lat, property.lng]).addTo(map)
-                .bindPopup(`<b>₹${property.price.toLocaleString()}</b><br>${property.type}`);
+            data.forEach(property => {
+                // Add property card to grid
+                const propertyCard = createPropertyCard(property);
+                document.getElementById('searchResults').appendChild(propertyCard);
+                
+                // Add marker to map
+                if (property.latitude && property.longitude) {
+                    const marker = L.marker([property.latitude, property.longitude])
+                        .bindPopup(createPropertyPopup(property));
+                    markers.addLayer(marker);
+                }
+            });
+            
+            map.fitBounds(markers.getBounds(), { padding: [50, 50] });
         });
-    });
+});
+
+// Property card template
+function createPropertyCard(property) {
+    const div = document.createElement('div');
+    div.className = 'col-md-6 col-lg-4';
+    div.innerHTML = `
+        <div class="card h-100 property-card">
+            <img src="${property.image_url || '/static/images/default-property.jpg'}" 
+                 class="card-img-top" alt="${property.type}"
+                 style="height: 200px; object-fit: cover;">
+            <div class="card-body">
+                <h5 class="card-title">${property.type}</h5>
+                <p class="card-text">
+                    <i class="bi bi-geo-alt"></i> ${property.city}<br>
+                    <strong>₹${property.price.toLocaleString()}</strong>
+                </p>
+                <a href="/property/${property.id}" class="btn btn-primary">View Details</a>
+            </div>
+        </div>
+    `;
+    return div;
 }
 
-// Initialize search on page load and filter changes
-$(document).ready(function() {
-    performSearch();
-    $('.filter-card input, .filter-card select').change(performSearch);
+// Property popup template for map markers
+function createPropertyPopup(property) {
+    return `
+        <div class="property-popup">
+            <img src="${property.image_url || '/static/images/default-property.jpg'}" 
+                 alt="${property.type}" style="width: 200px; height: 150px; object-fit: cover;">
+            <h6 class="mt-2 mb-1">${property.type}</h6>
+            <p class="mb-1"><strong>₹${property.price.toLocaleString()}</strong></p>
+            <p class="mb-2"><small>${property.city}</small></p>
+            <a href="/property/${property.id}" class="btn btn-sm btn-primary">View Details</a>
+        </div>
+    `;
+}
+
+// Handle sorting
+document.getElementById('sortOrder').addEventListener('change', function() {
+    const results = Array.from(document.getElementById('searchResults').children);
+    results.sort((a, b) => {
+        const priceA = parseInt(a.querySelector('strong').textContent.replace(/[₹,]/g, ''));
+        const priceB = parseInt(b.querySelector('strong').textContent.replace(/[₹,]/g, ''));
+        return this.value === 'price_low' ? priceA - priceB : priceB - priceA;
+    });
+    document.getElementById('searchResults').innerHTML = '';
+    results.forEach(card => document.getElementById('searchResults').appendChild(card));
 });
 </script>
+
+<style>
+.custom-checkbox .form-check-input:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.property-popup img {
+    border-radius: 4px;
+}
+
+.noUi-connect {
+    background: var(--primary-color);
+}
+
+.search-form {
+    background: white;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+}
+
+#mapViewBtn.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.custom-checkbox .form-check-label {
+    cursor: pointer;
+}
+
+.custom-checkbox .form-check-label:hover {
+    color: var(--primary-color);
+}
+</style>
+{% endblock %}
