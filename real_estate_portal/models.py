@@ -48,8 +48,16 @@ class IndianLocation(db.Model):
 class PropertyAmenity(db.Model):
     __tablename__ = 'PropertyAmenities'
     propertyId = db.Column(db.Integer, db.ForeignKey('Property.propertyId'), primary_key=True)
-    amenityName = db.Column(db.String(50), primary_key=True)
-    description = db.Column(db.String(255))
+    amenityId = db.Column(db.Integer, db.ForeignKey('Amenities.amenityId'), primary_key=True)
+    
+    # Add relationship to Amenities
+    amenity = db.relationship('Amenity', backref='properties')
+
+class Amenity(db.Model):
+    __tablename__ = 'Amenities'
+    amenityId = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.Text)
 
 class Property(db.Model):
     __tablename__ = 'Property'
@@ -79,8 +87,8 @@ class Property(db.Model):
     amenities = db.relationship('PropertyAmenity', backref='property', lazy='dynamic')
     
     def to_dict(self):
-        amenities_list = [{'name': a.amenityName, 'description': a.description} 
-                         for a in self.amenities]
+        amenities_list = [{'name': pa.amenity.name, 'description': pa.amenity.description} 
+                         for pa in self.amenities]
         return {
             'id': self.propertyId,
             'type': self.property_type.typeName,

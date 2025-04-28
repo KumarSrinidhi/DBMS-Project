@@ -11,17 +11,17 @@
             'Playground': 'playground.png'
         } %}
         
-        {% for amenity in property.amenities %}
+        {% for property_amenity in property.amenities %}
         <div class="amenity-item">
-            {% if amenity.name in amenities_icons %}
-                <img src="{{ url_for('static', filename='images/' + amenities_icons[amenity.name]) }}" 
-                     alt="{{ amenity.name }}" 
+            {% if property_amenity.amenity.name in amenities_icons %}
+                <img src="{{ url_for('static', filename='images/' + amenities_icons[property_amenity.amenity.name]) }}" 
+                     alt="{{ property_amenity.amenity.name }}" 
                      width="24" 
                      height="24">
             {% else %}
                 <i class="bi bi-check-circle"></i>
             {% endif %}
-            <span>{{ amenity.name }}</span>
+            <span>{{ property_amenity.amenity.name }}</span>
         </div>
         {% endfor %}
     </div>

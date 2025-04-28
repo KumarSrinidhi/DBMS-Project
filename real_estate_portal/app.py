@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from models import db, User, Property, PropertyType, IndianLocation, PropertyImages
+from models import db, User, Property, PropertyType, IndianLocation, PropertyImages, Amenity, PropertyAmenity
 from config import Config
 from forms import LoginForm, RegistrationForm, PropertyForm
 import os
@@ -18,6 +18,32 @@ login_manager.login_view = 'login'
 def init_db():
     with app.app_context():
         db.create_all()
+        
+        # Initialize amenities if they don't exist
+        amenities = [
+            {'id': 1, 'name': 'Swimming Pool', 'description': 'Swimming pool facility'},
+            {'id': 2, 'name': 'Gym', 'description': 'Modern fitness center'},
+            {'id': 3, 'name': 'Garden', 'description': 'Landscaped garden area'},
+            {'id': 4, 'name': 'Parking', 'description': 'Reserved parking space'},
+            {'id': 5, 'name': 'Security', 'description': '24/7 security service'},
+            {'id': 6, 'name': 'Playground', 'description': 'Children\'s playground'}
+        ]
+        
+        for amenity_data in amenities:
+            amenity = Amenity.query.get(amenity_data['id'])
+            if not amenity:
+                amenity = Amenity(
+                    amenityId=amenity_data['id'],
+                    name=amenity_data['name'],
+                    description=amenity_data['description']
+                )
+                db.session.add(amenity)
+        
+        try:
+            db.session.commit()
+        except Exception as e:
+            print(f"Error initializing amenities: {e}")
+            db.session.rollback()
 
 init_db()
 
