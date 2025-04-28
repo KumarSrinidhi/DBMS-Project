@@ -22,7 +22,7 @@
                 </div>
             </div>
             <div class="col-lg-6 d-none d-lg-block" data-aos="fade-left">
-                <img src="{{ url_for('static', filename='images/1.jpg') }}" alt="Hero Image" class="img-fluid">
+                <img src="{{ url_for('static', filename='images/hero-image.png') }}" alt="Hero Image" class="img-fluid">
             </div>
         </div>
     </div>
@@ -77,10 +77,10 @@
         <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="{{ loop.index * 100 }}">
             <div class="card h-100">
                 {% if property.images and property.images|length > 0 %}
-                    <img src="{{ property.images[0].imageURL }}" class="card-img-top" alt="Property Image"
+                    <img src="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/1.jpg') }}" class="card-img-top" alt="Property Image"
                          style="height: 250px; object-fit: cover;">
                 {% else %}
-                    <img src="{{ url_for('static', filename='images/1.jpg') }}" class="card-img-top" alt="Default Property Image"
+                    <img src="{{ url_for('static', filename='images/properties/1.jpg') }}" class="card-img-top" alt="Default Property Image"
                          style="height: 250px; object-fit: cover;">
                 {% endif %}
                 <div class="price-badge">₹{{ "{:,.0f}".format(property.price) }}</div>

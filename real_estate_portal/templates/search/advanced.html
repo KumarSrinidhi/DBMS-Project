@@ -260,7 +260,7 @@ function createPropertyCard(property) {
     div.className = 'col-md-6 col-lg-4';
     div.innerHTML = `
         <div class="card h-100 property-card">
-            <img src="${property.image_url || '/static/images/default-property.jpg'}" 
+            <img src="${property.image_url || '/static/images/properties/' + property.propertyId + '/1.jpg'}" 
                  class="card-img-top" alt="${property.type}"
                  style="height: 200px; object-fit: cover;">
             <div class="card-body">
@@ -280,7 +280,7 @@ function createPropertyCard(property) {
 function createPropertyPopup(property) {
     return `
         <div class="property-popup">
-            <img src="${property.image_url || '/static/images/default-property.jpg'}" 
+            <img src="${property.image_url || '/static/images/properties/' + property.propertyId + '/1.jpg'}" 
                  alt="${property.type}" style="width: 200px; height: 150px; object-fit: cover;">
             <h6 class="mt-2 mb-1">${property.type}</h6>
             <p class="mb-1"><strong>₹${property.price.toLocaleString()}</strong></p>

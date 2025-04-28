@@ -68,7 +68,9 @@
                             {% for image in property.images %}
                             <div class="col-md-4">
                                 <div class="position-relative">
-                                    <img src="{{ image.imageURL }}" class="img-fluid rounded" alt="Property Image">
+                                    <img src="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/' ~ loop.index ~ '.jpg') }}" 
+                                         class="img-fluid rounded" alt="Property Image"
+                                         onerror="this.src='{{ url_for('static', filename='images/properties/1.jpg') }}'">
                                     <button class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2" 
                                             onclick="deleteImage({{ image.imageId }})">
                                         <i class="bi bi-trash"></i>

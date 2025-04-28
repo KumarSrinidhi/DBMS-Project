@@ -171,8 +171,9 @@
                         <div class="amenity-selector mb-4">
                             {% for value, label in form.amenities.choices %}
                             <div class="amenity-item" data-value="{{ value }}">
-                                <img src="{{ url_for('static', filename='images/' ~ value|lower|replace(' ', '-') ~ '.png') }}" 
-                                     alt="{{ label }}">
+                                <img src="{{ url_for('static', filename='images/properties/' ~ value|lower|replace(' ', '-') ~ '.png') }}" 
+                                     alt="{{ label }}"
+                                     onerror="this.src='{{ url_for('static', filename='images/properties/1.jpg') }}'">
                                 <span>{{ label }}</span>
                                 <input type="checkbox" name="amenities" value="{{ value }}" 
                                        style="display: none;" class="amenity-checkbox">

@@ -485,6 +485,14 @@ INSERT INTO PropertyImages (propertyId, imageURL, isPrimary) VALUES
 (5009, '/images/5009/1.jpg', TRUE),
 (5010, '/images/5010/1.jpg', TRUE);
 
+-- Update existing image paths to use correct format
+UPDATE PropertyImages 
+SET imageURL = CONCAT('/static/images/properties/', 
+    SUBSTRING_INDEX(SUBSTRING_INDEX(imageURL, '/', 2), '/', -1),
+    '/',
+    SUBSTRING_INDEX(imageURL, '/', -1))
+WHERE imageURL LIKE '/images/%';
+
 INSERT INTO Buyer 
 (buyerId, userId, minBudget, maxBudget, preferredLocations)
 VALUES

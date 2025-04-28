@@ -34,8 +34,8 @@
                         {% if property.images and property.images|length > 0 %}
                             {% for image in property.images %}
                             <div class="swiper-slide">
-                                <a href="{{ image.imageURL }}" data-fancybox="gallery">
-                                    <img src="{{ image.imageURL }}" 
+                                <a href="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/' ~ loop.index ~ '.jpg') }}" data-fancybox="gallery">
+                                    <img src="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/' ~ loop.index ~ '.jpg') }}" 
                                          class="img-fluid w-100" 
                                          style="height: 500px; object-fit: cover; border-radius: 10px;"
                                          alt="{{ property.property_type.typeName }}">
@@ -44,7 +44,7 @@
                             {% endfor %}
                         {% else %}
                             <div class="swiper-slide">
-                                <img src="{{ url_for('static', filename='images/1.jpg') }}" 
+                                <img src="{{ url_for('static', filename='images/properties/1.jpg') }}" 
                                      class="img-fluid w-100" 
                                      style="height: 500px; object-fit: cover; border-radius: 10px;"
                                      alt="{{ property.property_type.typeName }}">

@@ -5,8 +5,9 @@ from config import Config
 from forms import LoginForm, RegistrationForm, PropertyForm
 import os
 from sqlalchemy import and_, or_, not_
+from werkzeug.utils import secure_filename
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/static', static_folder='static')
 app.config.from_object(Config)
 
 # Initialize extensions
@@ -123,7 +124,7 @@ def register():
 
 def allowed_file(filename):
     return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 @app.route('/upload/<int:property_id>', methods=['POST'])
 @login_required
@@ -142,13 +143,21 @@ def upload_image(property_id):
         return redirect(url_for('property_detail', property_id=property_id))
     
     if file and allowed_file(file.filename):
-        filename = secure_filename(f"{property_id}_{file.filename}")
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        # Create property folder if it doesn't exist
+        property_folder = os.path.join('static', 'images', 'properties', str(property_id))
+        os.makedirs(property_folder, exist_ok=True)
         
+        # Save file with secure filename
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(property_folder, filename)
+        file.save(file_path)
+        
+        # Store correct path in database
+        image_url = f'/static/images/properties/{property_id}/{filename}'
         image = PropertyImages(
             propertyId=property_id,
-            imageURL=url_for('static', filename=f'uploads/{filename}'),
-            isPrimary=False
+            imageURL=image_url,
+            isPrimary=len(property.images) == 0  # Make first image primary
         )
         db.session.add(image)
         db.session.commit()
@@ -752,9 +761,10 @@ def admin_delete_property_image(image_id):
     
     image = PropertyImages.query.get_or_404(image_id)
     try:
-        # Delete the actual image file if it exists
-        if os.path.exists(image.imageURL):
-            os.remove(image.imageURL)
+        # Remove the leading slash and convert URL path to filesystem path
+        file_path = image.imageURL.lstrip('/')
+        if os.path.exists(file_path):
+            os.remove(file_path)
         
         db.session.delete(image)
         db.session.commit()

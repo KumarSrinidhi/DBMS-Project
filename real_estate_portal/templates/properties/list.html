@@ -96,12 +96,12 @@
                     <div class="card h-100 property-card">
                         <div class="position-relative">
                             {% if property.images and property.images|length > 0 %}
-                                <img src="{{ property.images[0].imageURL }}" 
+                                <img src="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/1.jpg') }}" 
                                      class="card-img-top" 
                                      alt="{{ property.property_type.typeName }}"
                                      style="height: 250px; object-fit: cover;">
                             {% else %}
-                                <img src="{{ url_for('static', filename='images/1.jpg') }}" 
+                                <img src="{{ url_for('static', filename='images/properties/1.jpg') }}" 
                                      class="card-img-top" 
                                      alt="{{ property.property_type.typeName }}"
                                      style="height: 250px; object-fit: cover;">
