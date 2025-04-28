@@ -763,5 +763,104 @@ def admin_delete_property_image(image_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+@app.route('/profile')
+@login_required
+def profile():
+    if current_user.roleId == 4:  # Seller
+        user_properties = Property.query.filter_by(ownerId=current_user.userId).all()
+        return render_template('user/profile.html', user_properties=user_properties)
+    elif current_user.roleId == 3:  # Buyer
+        favorites = Favorites.query.filter_by(userId=current_user.userId).all()
+        return render_template('user/profile.html', favorites=favorites)
+    return render_template('user/profile.html')
+
+@app.route('/settings')
+@login_required
+def settings():
+    return render_template('user/settings.html')
+
+@app.route('/settings/update-profile', methods=['POST'])
+@login_required
+def update_profile():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        mobile = request.form.get('mobile')
+        
+        # Check if username or email already exists
+        if username != current_user.username and User.query.filter_by(username=username).first():
+            flash('Username already exists', 'danger')
+            return redirect(url_for('settings'))
+        
+        if email != current_user.email and User.query.filter_by(email=email).first():
+            flash('Email already exists', 'danger')
+            return redirect(url_for('settings'))
+        
+        current_user.username = username
+        current_user.email = email
+        current_user.mobile = mobile
+        db.session.commit()
+        
+        flash('Profile updated successfully', 'success')
+        return redirect(url_for('settings'))
+
+@app.route('/settings/change-password', methods=['POST'])
+@login_required
+def change_password():
+    if request.method == 'POST':
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if not current_user.check_password(current_password):
+            flash('Current password is incorrect', 'danger')
+            return redirect(url_for('settings'))
+        
+        if new_password != confirm_password:
+            flash('New passwords do not match', 'danger')
+            return redirect(url_for('settings'))
+        
+        current_user.set_password(new_password)
+        db.session.commit()
+        
+        flash('Password changed successfully', 'success')
+        return redirect(url_for('settings'))
+
+@app.route('/settings/update-notifications', methods=['POST'])
+@login_required
+def update_notifications():
+    if request.method == 'POST':
+        email_notifications = 'email_notifications' in request.form
+        sms_notifications = 'sms_notifications' in request.form
+        marketing_emails = 'marketing_emails' in request.form
+        
+        # Update user preferences in database
+        # This would require adding these fields to the User model
+        flash('Notification preferences updated', 'success')
+        return redirect(url_for('settings'))
+
+@app.route('/settings/delete-account', methods=['POST'])
+@login_required
+def delete_account():
+    if request.method == 'POST':
+        password = request.form.get('password')
+        
+        if not current_user.check_password(password):
+            flash('Password is incorrect', 'danger')
+            return redirect(url_for('settings'))
+        
+        # Delete user's data
+        if current_user.roleId == 4:  # Seller
+            Property.query.filter_by(ownerId=current_user.userId).delete()
+        Favorites.query.filter_by(userId=current_user.userId).delete()
+        
+        user_id = current_user.userId
+        logout_user()
+        User.query.filter_by(userId=user_id).delete()
+        db.session.commit()
+        
+        flash('Your account has been deleted', 'info')
+        return redirect(url_for('index'))
+
 if __name__ == '__main__':
     app.run(debug=True)
