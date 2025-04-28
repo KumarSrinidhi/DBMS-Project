@@ -1,65 +1,127 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-6">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5>Users ({{ users|length }})</h5>
+<div class="container py-4">
+    <h2 class="mb-4">Admin Dashboard</h2>
+    
+    <!-- Quick Stats -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Total Users</h6>
+                    <h2 class="mb-0">{{ users|length }}</h2>
+                </div>
             </div>
-            <div class="card-body">
-                <table class="table table-sm">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Username</th>
-                            <th>Role</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for user in users %}
-                        <tr>
-                            <td>{{ user.userId }}</td>
-                            <td>{{ user.username }}</td>
-                            <td>{{ user.role.roleName }}</td>
-                            <td>
-                                <a href="#" class="btn btn-sm btn-info">View</a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Total Properties</h6>
+                    <h2 class="mb-0">{{ properties|length }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Active Listings</h6>
+                    <h2 class="mb-0">{{ properties|selectattr('isActive', 'true')|list|length }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Pending Verifications</h6>
+                    <h2 class="mb-0">{{ properties|selectattr('reraRegistered', 'false')|list|length }}</h2>
+                </div>
             </div>
         </div>
     </div>
-    
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5>Properties ({{ properties|length }})</h5>
+
+    <div class="row">
+        <!-- User Management -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Users</h5>
+                    <a href="{{ url_for('admin_users') }}" class="btn btn-sm btn-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users[:5] %}
+                                <tr>
+                                    <td>{{ user.username }}</td>
+                                    <td>{{ user.role.roleName }}</td>
+                                    <td>
+                                        <span class="badge {% if user.isActive %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ 'Active' if user.isActive else 'Inactive' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('admin_edit_user', user_id=user.userId) }}" 
+                                           class="btn btn-sm btn-outline-primary">Edit</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <table class="table table-sm">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Type</th>
-                            <th>Location</th>
-                            <th>Price</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for property in properties %}
-                        <tr>
-                            <td>{{ property.propertyId }}</td>
-                            <td>{{ property.property_type.typeName }}</td>
-                            <td>{{ property.location.city }}</td>
-                            <td>₹{{ "{:,.0f}".format(property.price) }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        </div>
+
+        <!-- Property Management -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Properties</h5>
+                    <a href="{{ url_for('admin_properties') }}" class="btn btn-sm btn-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Location</th>
+                                    <th>Price</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for property in properties[:5] %}
+                                <tr>
+                                    <td>{{ property.property_type.typeName }}</td>
+                                    <td>{{ property.location.city }}</td>
+                                    <td>₹{{ "{:,.0f}".format(property.price) }}</td>
+                                    <td>
+                                        <span class="badge {% if property.isActive %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ 'Active' if property.isActive else 'Inactive' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('admin_edit_property', property_id=property.propertyId) }}" 
+                                           class="btn btn-sm btn-outline-primary">Edit</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

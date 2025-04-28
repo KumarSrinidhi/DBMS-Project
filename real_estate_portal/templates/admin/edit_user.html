@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Edit User: {{ user.username }}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label">Username</label>
+                            <input type="text" class="form-control" name="username" value="{{ user.username }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" name="email" value="{{ user.email }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Mobile</label>
+                            <input type="tel" class="form-control" name="mobile" value="{{ user.mobile }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Role</label>
+                            <select class="form-select" name="role" required>
+                                {% for role in roles %}
+                                <option value="{{ role.roleId }}" {% if role.roleId == user.roleId %}selected{% endif %}>
+                                    {{ role.roleName }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" name="isActive" id="isActive" 
+                                       {% if user.isActive %}checked{% endif %}>
+                                <label class="form-check-label" for="isActive">Active Account</label>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                            <a href="{{ url_for('admin_users') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

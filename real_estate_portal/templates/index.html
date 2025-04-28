@@ -14,9 +14,11 @@
                     <a href="{{ url_for('properties') }}" class="btn btn-light btn-lg">
                         <i class="bi bi-search me-2"></i>Browse Properties
                     </a>
+                    {% if not current_user.is_authenticated %}
                     <a href="{{ url_for('register') }}" class="btn btn-outline-light btn-lg">
                         <i class="bi bi-person-plus me-2"></i>Join Now
                     </a>
+                    {% endif %}
                 </div>
             </div>
             <div class="col-lg-6 d-none d-lg-block" data-aos="fade-left">
@@ -164,29 +166,6 @@
             </a>
         </div>
         {% endfor %}
-    </div>
-</section>
-
-<!-- Download App Section -->
-<section class="bg-primary text-white py-5 mb-5">
-    <div class="container">
-        <div class="row align-items-center">
-            <div class="col-md-6" data-aos="fade-right">
-                <h2 class="mb-4">Download Our Mobile App</h2>
-                <p class="mb-4">Get the best property deals on the go. Download our mobile app for a seamless experience.</p>
-                <div class="d-flex gap-3">
-                    <a href="#" class="btn btn-light">
-                        <i class="bi bi-apple me-2"></i>App Store
-                    </a>
-                    <a href="#" class="btn btn-light">
-                        <i class="bi bi-google-play me-2"></i>Play Store
-                    </a>
-                </div>
-            </div>
-            <div class="col-md-6" data-aos="fade-left">
-                <img src="{{ url_for('static', filename='images/1.jpg') }}" alt="Mobile App" class="img-fluid">
-            </div>
-        </div>
     </div>
 </section>
 {% endblock %}

@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from models import db, User, Property, PropertyType, IndianLocation, PropertyImages, Amenity, PropertyAmenity
+from models import db, User, Property, PropertyType, IndianLocation, PropertyImages, Amenity, PropertyAmenity, UserRole
 from config import Config
 from forms import LoginForm, RegistrationForm, PropertyForm
 import os
@@ -39,10 +39,36 @@ def init_db():
                 )
                 db.session.add(amenity)
         
+        # Initialize roles if they don't exist
+        roles = [
+            {'id': 1, 'name': 'Admin'},
+            {'id': 2, 'name': 'Agent'},
+            {'id': 3, 'name': 'Buyer'},
+            {'id': 4, 'name': 'Seller'}
+        ]
+        
+        for role_data in roles:
+            role = UserRole.query.get(role_data['id'])
+            if not role:
+                role = UserRole(roleId=role_data['id'], roleName=role_data['name'])
+                db.session.add(role)
+        
+        # Create admin user if it doesn't exist
+        admin = User.query.filter_by(username='admin').first()
+        if not admin:
+            admin = User(
+                username='admin',
+                email='admin@realestate.com',
+                mobile='9999999999',
+                roleId=1  # Admin role
+            )
+            admin.set_password('admin123')  # Set a default password
+            db.session.add(admin)
+        
         try:
             db.session.commit()
         except Exception as e:
-            print(f"Error initializing amenities: {e}")
+            print(f"Error initializing database: {e}")
             db.session.rollback()
 
 init_db()
@@ -241,6 +267,55 @@ def admin_dashboard():
     return render_template('admin/dashboard.html', 
                          users=users,
                          properties=properties)
+
+@app.route('/admin/users')
+@login_required
+def admin_users():
+    if current_user.roleId != 1:
+        abort(403)
+    users = User.query.all()
+    return render_template('admin/users.html', users=users)
+
+@app.route('/admin/properties')
+@login_required
+def admin_properties():
+    if current_user.roleId != 1:
+        abort(403)
+    properties = Property.query.all()
+    return render_template('admin/properties.html', properties=properties)
+
+@app.route('/admin/edit_user/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+def admin_edit_user(user_id):
+    if current_user.roleId != 1:
+        abort(403)
+    user = User.query.get_or_404(user_id)
+    if request.method == 'POST':
+        user.username = request.form['username']
+        user.email = request.form['email']
+        user.mobile = request.form['mobile']
+        user.roleId = int(request.form['role'])
+        user.isActive = 'isActive' in request.form
+        db.session.commit()
+        flash('User updated successfully', 'success')
+        return redirect(url_for('admin_users'))
+    roles = UserRole.query.all()
+    return render_template('admin/edit_user.html', user=user, roles=roles)
+
+@app.route('/admin/edit_property/<int:property_id>', methods=['GET', 'POST'])
+@login_required
+def admin_edit_property(property_id):
+    if current_user.roleId != 1:
+        abort(403)
+    property = Property.query.get_or_404(property_id)
+    if request.method == 'POST':
+        property.price = float(request.form['price'])
+        property.isActive = 'isActive' in request.form
+        property.reraRegistered = 'reraRegistered' in request.form
+        db.session.commit()
+        flash('Property updated successfully', 'success')
+        return redirect(url_for('admin_properties'))
+    return render_template('admin/edit_property.html', property=property)
 
 class Favorites(db.Model):
     __tablename__ = 'Favorites'
@@ -643,6 +718,50 @@ def terms():
 @app.route('/privacy')
 def privacy():
     return render_template('pages/privacy.html')
+
+@app.route('/admin/toggle-user-status/<int:user_id>', methods=['POST'])
+@login_required
+def admin_toggle_user_status(user_id):
+    if current_user.roleId != 1:  # Only admin can toggle user status
+        abort(403)
+    
+    user = User.query.get_or_404(user_id)
+    if user.roleId == 1:  # Cannot deactivate admin users
+        abort(400)
+    
+    user.isActive = not user.isActive
+    db.session.commit()
+    return jsonify({'success': True})
+
+@app.route('/admin/toggle-property-status/<int:property_id>', methods=['POST'])
+@login_required
+def admin_toggle_property_status(property_id):
+    if current_user.roleId != 1:  # Only admin can toggle property status
+        abort(403)
+    
+    property = Property.query.get_or_404(property_id)
+    property.isActive = not property.isActive
+    db.session.commit()
+    return jsonify({'success': True})
+
+@app.route('/admin/property/delete-image/<int:image_id>', methods=['POST'])
+@login_required
+def admin_delete_property_image(image_id):
+    if current_user.roleId != 1:
+        abort(403)
+    
+    image = PropertyImages.query.get_or_404(image_id)
+    try:
+        # Delete the actual image file if it exists
+        if os.path.exists(image.imageURL):
+            os.remove(image.imageURL)
+        
+        db.session.delete(image)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
