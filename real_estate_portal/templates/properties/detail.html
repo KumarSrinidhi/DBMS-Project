@@ -131,13 +131,29 @@
             <div class="card mb-4 contact-card" id="contact-form">
                 <div class="card-body">
                     <div class="text-center mb-4">
-                        <div class="owner-avatar mb-3">
-                            <i class="bi bi-person-circle display-4"></i>
-                        </div>
+                        {% if property.owner.roleId == 2 %}
+                            <!-- Show agent profile image for agent listings -->
+                            {% set agent_number = (property.owner.userId % 7) + 1 %}
+                            <img src="{{ url_for('static', filename='images/Agents/Agent (' ~ agent_number ~ ').jpg') }}"
+                                 class="rounded-circle owner-avatar mb-3"
+                                 alt="{{ property.owner.username }}"
+                                 style="width: 80px; height: 80px; object-fit: cover;">
+                        {% else %}
+                            <!-- Show generic avatar for regular sellers -->
+                            <img src="https://ui-avatars.com/api/?name={{ property.owner.username }}&background=random&size=80"
+                                 class="rounded-circle owner-avatar mb-3"
+                                 alt="{{ property.owner.username }}">
+                        {% endif %}
                         <h5 class="mb-1">{{ property.owner.username }}</h5>
-                        <p class="text-muted small mb-3">Property Owner</p>
-                        {% if property.owner.verified %}
-                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Verified Owner</span>
+                        <p class="text-muted small mb-3">
+                            {% if property.owner.roleId == 2 %}
+                                Professional Agent
+                            {% else %}
+                                Property Owner
+                            {% endif %}
+                        </p>
+                        {% if property.owner.roleId == 2 %}
+                            <span class="badge bg-success"><i class="bi bi-patch-check-fill me-1"></i>Licensed Agent</span>
                         {% endif %}
                     </div>
                     

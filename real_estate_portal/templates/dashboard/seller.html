@@ -1,49 +1,103 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>My Properties</h2>
-<a href="{{ url_for('add_property') }}" class="btn btn-success mb-3">Add New Property</a>
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8">
+            <h2>My Properties</h2>
+            <a href="{{ url_for('add_property') }}" class="btn btn-success mb-3">Add New Property</a>
 
-<div class="table-responsive">
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Type</th>
-                <th>Location</th>
-                <th>Price</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for property in properties %}
-            <tr>
-                <td>{{ property.propertyId }}</td>
-                <td>{{ property.property_type.typeName }}</td>
-                <td>{{ property.location.city }}</td>
-                <td>₹{{ "{:,.0f}".format(property.price) }}</td>
-                <td>
-                    <span class="badge {% if property.isActive %}bg-success{% else %}bg-secondary{% endif %}">
-                        {% if property.isActive %}Active{% else %}Inactive{% endif %}
-                    </span>
-                </td>
-                <td>
-                    {% if property.images and property.images|length > 0 %}
-                        <img src="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/1.jpg') }}" 
-                             class="card-img-top" alt="Property Image"
-                             style="height: 200px; object-fit: cover;">
-                    {% else %}
-                        <img src="{{ url_for('static', filename='images/properties/1.jpg') }}" 
-                             class="card-img-top" alt="Default Property Image"
-                             style="height: 200px; object-fit: cover;">
-                    {% endif %}
-                    <a href="{{ url_for('property_detail', property_id=property.propertyId) }}" class="btn btn-sm btn-primary">View</a>
-                    <a href="#" class="btn btn-sm btn-warning">Edit</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Type</th>
+                            <th>Location</th>
+                            <th>Price</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for property in properties %}
+                        <tr>
+                            <td>{{ property.propertyId }}</td>
+                            <td>{{ property.property_type.typeName }}</td>
+                            <td>{{ property.location.city }}</td>
+                            <td>₹{{ "{:,.0f}".format(property.price) }}</td>
+                            <td>
+                                <span class="badge {% if property.isActive %}bg-success{% else %}bg-secondary{% endif %}">
+                                    {% if property.isActive %}Active{% else %}Inactive{% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                {% if property.images and property.images|length > 0 %}
+                                    <img src="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/1.jpg') }}" 
+                                         class="card-img-top" alt="Property Image"
+                                         style="height: 200px; object-fit: cover;">
+                                {% else %}
+                                    <img src="{{ url_for('static', filename='images/properties/1.jpg') }}" 
+                                         class="card-img-top" alt="Default Property Image"
+                                         style="height: 200px; object-fit: cover;">
+                                {% endif %}
+                                <a href="{{ url_for('property_detail', property_id=property.propertyId) }}" class="btn btn-sm btn-primary">View</a>
+                                <a href="#" class="btn btn-sm btn-warning">Edit</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Our Expert Agents</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">Connect with our expert agents to help market your property effectively.</p>
+                    
+                    {% set agents = [
+                        ('Agent (4).jpg', 'Sarah Wilson', 'Luxury Properties', '+91 98765 43210'),
+                        ('Agent (5).jpg', 'Michael Chen', 'Commercial Expert', '+91 98765 43211'),
+                        ('Agent (6).jpg', 'Priya Sharma', 'Residential Specialist', '+91 98765 43212'),
+                        ('Agent (7).jpg', 'David Anderson', 'Investment Advisor', '+91 98765 43213')
+                    ] %}
+                    
+                    <div class="agents-list">
+                        {% for image, name, specialty, phone in agents %}
+                        <div class="agent-item d-flex align-items-center mb-4">
+                            <img src="{{ url_for('static', filename='images/Agents/' ~ image) }}" 
+                                 class="rounded-circle me-3" 
+                                 alt="{{ name }}"
+                                 style="width: 60px; height: 60px; object-fit: cover;">
+                            <div>
+                                <h6 class="mb-1">{{ name }}</h6>
+                                <p class="text-muted small mb-1">{{ specialty }}</p>
+                                <a href="tel:{{ phone }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-telephone me-1"></i>{{ phone }}
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+.agent-item {
+    transition: transform 0.2s ease;
+}
+.agent-item:hover {
+    transform: translateX(5px);
+}
+.agent-item img {
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+}
+</style>
 {% endblock %}
