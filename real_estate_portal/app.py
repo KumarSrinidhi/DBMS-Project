@@ -594,5 +594,33 @@ def property_valuation():
                          locations=locations,
                          amenities=amenities)
 
+@app.route('/about')
+def about():
+    return render_template('pages/about.html')
+
+@app.route('/contact', methods=['GET', 'POST'])
+def contact():
+    if request.method == 'POST':
+        # Handle contact form submission
+        name = request.form.get('name')
+        email = request.form.get('email')
+        phone = request.form.get('phone')
+        subject = request.form.get('subject')
+        message = request.form.get('message')
+        
+        # Here you would typically send an email or save to database
+        flash('Thank you for your message. We will get back to you soon!', 'success')
+        return redirect(url_for('contact'))
+        
+    return render_template('pages/contact.html')
+
+@app.route('/terms')
+def terms():
+    return render_template('pages/terms.html')
+
+@app.route('/privacy')
+def privacy():
+    return render_template('pages/privacy.html')
+
 if __name__ == '__main__':
     app.run(debug=True)
