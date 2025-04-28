@@ -35,8 +35,6 @@ class RegistrationForm(FlaskForm):
             raise ValidationError('Mobile number already registered')
 
 class PropertyForm(FlaskForm):
-    title = StringField('Property Title', validators=[DataRequired(), Length(max=100)])
-    description = TextAreaField('Description', validators=[DataRequired()])
     address = TextAreaField('Address', validators=[DataRequired()])
     price = DecimalField('Price (₹)', validators=[DataRequired()])
     carpet_area = IntegerField('Carpet Area (sq.ft)', validators=[DataRequired()])

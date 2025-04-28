@@ -1,9 +1,10 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, abort
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from models import db, User, Property, PropertyType, IndianLocation, PropertyImages, Amenity, PropertyAmenity, UserRole
+from models import db, User, Property, PropertyType, IndianLocation, PropertyImages, Amenity, PropertyAmenity, UserRole, UserDocument
 from config import Config
 from forms import LoginForm, RegistrationForm, PropertyForm
 import os
+import random
 from sqlalchemy import and_, or_, not_
 from werkzeug.utils import secure_filename
 
@@ -230,24 +231,45 @@ def property_detail(property_id):
 def add_property():
     form = PropertyForm()
     if form.validate_on_submit():
-        property = Property(
-            address=form.address.data,
-            ownerId=current_user.userId,
-            price=form.price.data,
-            carpetArea=form.carpetArea.data,
-            typeId=form.typeId.data,
-            locationId=form.locationId.data,
-            reraRegistered=form.reraRegistered.data,
-            furnishingType=form.furnishingType.data,
-            propertyAge=form.propertyAge.data,
-            ownershipType=form.ownershipType.data,
-            listingType=form.listingType.data,
-            propertyCategory=form.propertyCategory.data
-        )
-        db.session.add(property)
-        db.session.commit()
-        flash('Your property has been listed!', 'success')
-        return redirect(url_for('property_detail', property_id=property.propertyId))
+        try:
+            # Create new property
+            property = Property(
+                address=form.address.data,
+                ownerId=current_user.userId,
+                price=form.price.data,
+                carpetArea=form.carpet_area.data,
+                typeId=form.property_type.data,
+                locationId=form.location.data,
+                reraRegistered=form.rera_registered.data,
+                furnishingType=form.furnishing_type.data,
+                propertyAge=form.property_age.data,
+                ownershipType=form.ownership_type.data,
+                listingType=form.listing_type.data,
+                propertyCategory=form.property_category.data,
+                latitude=form.latitude.data,
+                longitude=form.longitude.data
+            )
+            db.session.add(property)
+            db.session.flush()  # Get the property ID without committing
+
+            # Save amenities
+            if form.amenities.data:
+                for amenity in form.amenities.data:
+                    prop_amenity = PropertyAmenity(
+                        propertyId=property.propertyId,
+                        amenityId=int(amenity)
+                    )
+                    db.session.add(prop_amenity)
+            
+            db.session.commit()
+            flash('Your property has been listed successfully!', 'success')
+            return redirect(url_for('property_detail', property_id=property.propertyId))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error listing property: {str(e)}', 'danger')
+            return redirect(url_for('add_property'))
+            
     return render_template('properties/add.html', form=form)
 
 @app.route('/dashboard')
@@ -260,8 +282,9 @@ def dashboard():
         favorites = current_user.favorites
         return render_template('dashboard/buyer.html', favorites=favorites)
     elif current_user.roleId == 2:  # Agent
-        listings = Listing.query.filter_by(agentId=current_user.agent.agentId).all()
-        return render_template('dashboard/agent.html', listings=listings)
+        # For now, just show all active properties since we don't have Listings
+        properties = Property.query.filter_by(isActive=True).all()
+        return render_template('dashboard/agent.html', properties=properties)
     else:
         return render_template('dashboard/admin.html')
 
@@ -412,8 +435,6 @@ def advanced_search():
         'min_area': request.args.get('min_area'),
         'max_area': request.args.get('max_area'),
         'furnishing': request.args.get('furnishing'),
-        'bedrooms': request.args.get('bedrooms'),
-        'bathrooms': request.args.get('bathrooms'),
         'property_age': request.args.get('property_age'),
         'ownership': request.args.get('ownership'),
         'listing_type': request.args.get('listing_type')
@@ -430,10 +451,16 @@ def advanced_search():
         query = query.filter(IndianLocation.city.ilike(f"%{filters['city']}%"))
     if filters['locality']:
         query = query.filter(Property.address.ilike(f"%{filters['locality']}%"))
-    if filters['bedrooms'] and filters['property_category'] == 'Residential':
-        query = query.join(ResidentialProperty).filter(ResidentialProperty.bedrooms >= filters['bedrooms'])
-    
-    # Add similar conditions for other filters
+    if filters['min_area']:
+        query = query.filter(Property.carpetArea >= filters['min_area'])
+    if filters['furnishing']:
+        query = query.filter(Property.furnishingType == filters['furnishing'])
+    if filters['property_age']:
+        query = query.filter(Property.propertyAge == filters['property_age'])
+    if filters['ownership']:
+        query = query.filter(Property.ownershipType == filters['ownership'])
+    if filters['listing_type']:
+        query = query.filter(Property.listingType == filters['listing_type'])
     
     results = query.limit(50).all()
     return jsonify([property.to_dict() for property in results])
@@ -1000,6 +1027,84 @@ def admin_toggle_featured(property_id):
     action = 'featured' if property.isFeatured else 'unfeatured'
     flash(f'Property has been {action}', 'success')
     return redirect(url_for('admin_properties'))
+
+@app.route('/property/<int:property_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_property(property_id):
+    property = Property.query.get_or_404(property_id)
+    
+    # Check if user is the owner
+    if property.ownerId != current_user.userId:
+        abort(403)
+        
+    form = PropertyForm(obj=property)
+    
+    if form.validate_on_submit():
+        try:
+            property.address = form.address.data
+            property.price = form.price.data
+            property.carpetArea = form.carpet_area.data
+            property.typeId = form.property_type.data
+            property.locationId = form.location.data
+            property.furnishingType = form.furnishing_type.data
+            property.propertyAge = form.property_age.data
+            property.ownershipType = form.ownership_type.data
+            property.listingType = form.listing_type.data
+            property.propertyCategory = form.property_category.data
+            property.reraRegistered = form.rera_registered.data
+            
+            # Update amenities
+            PropertyAmenity.query.filter_by(propertyId=property_id).delete()
+            if form.amenities.data:
+                for amenity_id in form.amenities.data:
+                    prop_amenity = PropertyAmenity(propertyId=property_id, amenityId=int(amenity_id))
+                    db.session.add(prop_amenity)
+            
+            db.session.commit()
+            flash('Property updated successfully!', 'success')
+            return redirect(url_for('dashboard'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating property: {str(e)}', 'danger')
+    
+    return render_template('properties/add.html', form=form, edit_mode=True)
+
+@app.route('/property/<int:property_id>/delete', methods=['POST'])
+@login_required
+def delete_property(property_id):
+    property = Property.query.get_or_404(property_id)
+    
+    # Check if user is the owner
+    if property.ownerId != current_user.userId:
+        abort(403)
+    
+    try:
+        # Delete associated images first
+        for image in property.images:
+            try:
+                file_path = os.path.join(app.root_path, image.imageURL.lstrip('/'))
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except Exception as e:
+                print(f"Error deleting image file: {e}")
+        
+        # Delete property amenities
+        PropertyAmenity.query.filter_by(propertyId=property_id).delete()
+        
+        # Delete property from favorites
+        Favorites.query.filter_by(propertyId=property_id).delete()
+        
+        # Delete the property
+        db.session.delete(property)
+        db.session.commit()
+        
+        flash('Property has been deleted successfully', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting property: {str(e)}', 'danger')
+    
+    return redirect(url_for('dashboard'))
 
 if __name__ == '__main__':
     app.run(debug=True)

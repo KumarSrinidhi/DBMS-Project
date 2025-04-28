@@ -17,16 +17,16 @@ body {
 
 /* Navbar Styles */
 .navbar {
-    padding: 1.5rem 0;
+    padding: 0.5rem 0;  /* Reduced from 1.5rem */
     box-shadow: var(--shadow);
     background: rgba(255, 255, 255, 0.95) !important;
     backdrop-filter: blur(10px);
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;  /* Reduced from 2rem */
 }
 
 .navbar-brand {
     font-weight: 700;
-    font-size: 1.5rem;
+    font-size: 1.3rem;  /* Slightly reduced */
     color: var(--primary-color) !important;
 }
 
@@ -34,8 +34,8 @@ body {
     font-weight: 500;
     color: var(--text-color) !important;
     transition: var(--transition);
-    padding: 0.5rem 1rem !important;
-    margin: 0 0.2rem;
+    padding: 0.4rem 0.8rem !important;  /* Reduced padding */
+    margin: 0 0.1rem;  /* Reduced margin */
     border-radius: 5px;
 }
 
@@ -325,4 +325,13 @@ footer .social-links a:hover {
 
 .form-check {
     margin-bottom: 0.5rem;
+}
+
+/* Main Content Adjustment */
+main.pt-5 {
+    padding-top: 3.5rem !important;  /* Reduced top padding */
+}
+
+.mt-4 {
+    margin-top: 1rem !important;  /* Reduced top margin */
 }
