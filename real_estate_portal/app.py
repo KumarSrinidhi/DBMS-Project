@@ -187,23 +187,50 @@ def search():
 @app.route('/properties')
 def properties():
     # Get filter parameters from URL
-    city = request.args.get('city')
-    min_price = request.args.get('min_price')
-    max_price = request.args.get('max_price')
-    property_type = request.args.get('type')
-    
-    # Start with base query
     query = Property.query.filter_by(isActive=True)
-    
-    # Apply filters
-    if city:
+
+    # Basic filters
+    if city := request.args.get('city'):
         query = query.join(IndianLocation).filter(IndianLocation.city.ilike(f'%{city}%'))
-    if min_price:
+    if min_price := request.args.get('min_price'):
         query = query.filter(Property.price >= float(min_price))
-    if max_price:
+    if max_price := request.args.get('max_price'):
         query = query.filter(Property.price <= float(max_price))
-    if property_type:
+    if property_type := request.args.get('type'):
         query = query.filter(Property.typeId == int(property_type))
+    if min_area := request.args.get('min_area'):
+        query = query.filter(Property.carpetArea >= float(min_area))
+    if max_area := request.args.get('max_area'):
+        query = query.filter(Property.carpetArea <= float(max_area))
+    
+    # New filters
+    if category := request.args.get('category'):
+        query = query.filter(Property.propertyCategory == category)
+    if listing_type := request.args.get('listing_type'):
+        query = query.filter(Property.listingType == listing_type)
+    if property_age := request.args.get('property_age'):
+        query = query.filter(Property.propertyAge == property_age)
+    if furnishing := request.args.get('furnishing'):
+        query = query.filter(Property.furnishingType == furnishing)
+    if facing := request.args.get('facing'):
+        query = query.filter(Property.facing == facing)
+    if water_supply := request.args.get('water_supply'):
+        query = query.filter(Property.waterSupply == water_supply)
+    if power_backup := request.args.get('power_backup'):
+        query = query.filter(Property.powerBackup == power_backup)
+    if 'rera_registered' in request.args:
+        query = query.filter(Property.reraRegistered == True)
+    
+    # Sorting
+    sort = request.args.get('sort', 'newest')
+    if sort == 'price_low':
+        query = query.order_by(Property.price.asc())
+    elif sort == 'price_high':
+        query = query.order_by(Property.price.desc())
+    elif sort == 'area':
+        query = query.order_by(Property.carpetArea.desc())
+    else:  # newest
+        query = query.order_by(Property.createdAt.desc())
     
     # Pagination
     page = request.args.get('page', 1, type=int)
@@ -247,7 +274,15 @@ def add_property():
                 listingType=form.listing_type.data,
                 propertyCategory=form.property_category.data,
                 latitude=form.latitude.data,
-                longitude=form.longitude.data
+                longitude=form.longitude.data,
+                maintenanceCharge=form.maintenance_charge.data,
+                totalFloors=form.total_floors.data,
+                floorNumber=form.floor_number.data,
+                waterSupply=form.water_supply.data,
+                facing=form.facing.data,
+                overlooking=form.overlooking.data,
+                powerBackup=form.power_backup.data,
+                description=form.description.data
             )
             db.session.add(property)
             db.session.flush()  # Get the property ID without committing
@@ -472,48 +507,72 @@ def search_page():
 
 @app.route('/api/properties/search')
 def search_properties():
-    # Get search parameters
-    filters = []
+    # Base query
+    query = Property.query.filter_by(isActive=True)
     
+    # Location filters
     if location := request.args.get('location'):
-        filters.append(or_(
-            IndianLocation.city.ilike(f'%{location}%'),
-            IndianLocation.state.ilike(f'%{location}%'),
-            Property.address.ilike(f'%{location}%')
-        ))
+        query = query.join(IndianLocation).filter(
+            or_(
+                IndianLocation.city.ilike(f'%{location}%'),
+                IndianLocation.state.ilike(f'%{location}%')
+            )
+        )
     
-    if property_type := request.args.get('type'):
-        filters.append(Property.typeId == property_type)
-    
-    if listing_type := request.args.get('listing_type'):
-        filters.append(Property.listingType == listing_type)
-    
+    # Price range
     if min_price := request.args.get('min_price'):
-        filters.append(Property.price >= float(min_price))
-    
+        query = query.filter(Property.price >= float(min_price))
     if max_price := request.args.get('max_price'):
-        filters.append(Property.price <= float(max_price))
+        query = query.filter(Property.price <= float(max_price))
     
+    # Area range
     if min_area := request.args.get('min_area'):
-        filters.append(Property.carpetArea >= float(min_area))
+        query = query.filter(Property.carpetArea >= float(min_area))
+    if max_area := request.args.get('max_area'):
+        query = query.filter(Property.carpetArea <= float(max_area))
     
-    if furnishing := request.args.get('furnishing'):
-        filters.append(Property.furnishingType == furnishing)
+    # Property type and category
+    if property_type := request.args.get('type'):
+        query = query.filter(Property.typeId == int(property_type))
+    if category := request.args.get('category'):
+        query = query.filter(Property.propertyCategory == category)
     
+    # Listing type and ownership
+    if listing_type := request.args.get('listing_type'):
+        query = query.filter(Property.listingType == listing_type)
+    if ownership_type := request.args.get('ownership_type'):
+        query = query.filter(Property.ownershipType == ownership_type)
+    
+    # Building details
+    if min_floor := request.args.get('min_floor'):
+        query = query.filter(Property.floorNumber >= int(min_floor))
+    if max_floor := request.args.get('max_floor'):
+        query = query.filter(Property.floorNumber <= int(max_floor))
+    if facing := request.args.get('facing'):
+        query = query.filter(Property.facing == facing)
+    
+    # Amenities
+    if amenities := request.args.getlist('amenities'):
+        for amenity_id in amenities:
+            query = query.join(PropertyAmenity).filter(PropertyAmenity.amenityId == int(amenity_id))
+    
+    # Utilities
+    if water_supply := request.args.get('water_supply'):
+        query = query.filter(Property.waterSupply == water_supply)
+    if power_backup := request.args.get('power_backup'):
+        query = query.filter(Property.powerBackup == power_backup)
+    
+    # Age and furnishing
     if property_age := request.args.get('property_age'):
-        filters.append(Property.propertyAge == property_age)
+        query = query.filter(Property.propertyAge == property_age)
+    if furnishing := request.args.get('furnishing'):
+        query = query.filter(Property.furnishingType == furnishing)
     
-    # Build query with joins
-    query = Property.query\
-        .join(PropertyType)\
-        .join(IndianLocation)\
-        .filter(Property.isActive == True)
+    # Additional filters
+    if 'rera_registered' in request.args:
+        query = query.filter(Property.reraRegistered == True)
     
-    # Apply all filters
-    if filters:
-        query = query.filter(and_(*filters))
-    
-    # Apply sorting
+    # Sorting
     sort = request.args.get('sort', 'newest')
     if sort == 'price_low':
         query = query.order_by(Property.price.asc())
@@ -524,28 +583,47 @@ def search_properties():
     else:  # newest
         query = query.order_by(Property.createdAt.desc())
     
-    # Execute query and format results
-    properties = query.all()
-    results = []
+    # Pagination
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 9, type=int)
+    pagination = query.paginate(page=page, per_page=per_page)
     
-    for property in properties:
-        result = property.to_dict()
-        # Check for property images, use default if none exist
-        if property.images and len(property.images) > 0:
-            image_url = property.images[0].imageURL
-        else:
-            image_url = url_for('static', filename='images/1.jpg')  # Use first default image
-            
-        result.update({
-            'latitude': property.latitude,
-            'longitude': property.longitude,
-            'image_url': image_url,
-            'city': property.location.city,
-            'state': property.location.state,
-        })
-        results.append(result)
+    # Format response
+    properties = [{
+        'id': p.propertyId,
+        'type': p.property_type.typeName,
+        'category': p.propertyCategory,
+        'price': float(p.price),
+        'carpet_area': p.carpetArea,
+        'city': p.location.city,
+        'state': p.location.state,
+        'address': p.address,
+        'listing_type': p.listingType,
+        'furnishing': p.furnishingType,
+        'age': p.propertyAge,
+        'ownership': p.ownershipType,
+        'rera_registered': p.reraRegistered,
+        'maintenance_charge': float(p.maintenanceCharge) if p.maintenanceCharge else None,
+        'total_floors': p.totalFloors,
+        'floor_number': p.floorNumber,
+        'water_supply': p.waterSupply,
+        'facing': p.facing,
+        'overlooking': p.overlooking,
+        'power_backup': p.powerBackup,
+        'description': p.description,
+        'amenities': [{'id': pa.amenityId, 'name': pa.amenity.name} for pa in p.amenities],
+        'created_at': p.createdAt.isoformat(),
+        'images': [img.imageURL for img in p.images]
+    } for p in pagination.items]
     
-    return jsonify(results)
+    return jsonify({
+        'properties': properties,
+        'total': pagination.total,
+        'pages': pagination.pages,
+        'current_page': pagination.page,
+        'has_next': pagination.has_next,
+        'has_prev': pagination.has_prev
+    })
 
 @app.route('/favorite/<int:property_id>', methods=['POST'])
 @login_required
@@ -1052,6 +1130,16 @@ def edit_property(property_id):
             property.listingType = form.listing_type.data
             property.propertyCategory = form.property_category.data
             property.reraRegistered = form.rera_registered.data
+            property.latitude = form.latitude.data
+            property.longitude = form.longitude.data
+            property.maintenanceCharge = form.maintenance_charge.data
+            property.totalFloors = form.total_floors.data
+            property.floorNumber = form.floor_number.data
+            property.waterSupply = form.water_supply.data
+            property.facing = form.facing.data
+            property.overlooking = form.overlooking.data
+            property.powerBackup = form.power_backup.data
+            property.description = form.description.data
             
             # Update amenities
             PropertyAmenity.query.filter_by(propertyId=property_id).delete()
@@ -1062,7 +1150,7 @@ def edit_property(property_id):
             
             db.session.commit()
             flash('Property updated successfully!', 'success')
-            return redirect(url_for('dashboard'))
+            return redirect(url_for('property_detail', property_id=property_id))
             
         except Exception as e:
             db.session.rollback()
@@ -1105,6 +1193,35 @@ def delete_property(property_id):
         flash(f'Error deleting property: {str(e)}', 'danger')
     
     return redirect(url_for('dashboard'))
+
+@app.route('/map-search')
+def map_search():
+    # Get all properties with coordinates
+    properties = Property.query.filter(
+        Property.isActive == True,
+        Property.latitude.isnot(None),
+        Property.longitude.isnot(None)
+    ).all()
+    
+    # Format properties for map markers
+    map_properties = [{
+        'id': p.propertyId,
+        'lat': p.latitude,
+        'lng': p.longitude,
+        'title': f"{p.property_type.typeName} in {p.location.city}",
+        'price': float(p.price),
+        'address': p.address,
+        'area': p.carpetArea,
+        'type': p.property_type.typeName,
+        'category': p.propertyCategory,
+        'listing_type': p.listingType,
+        'image': p.images[0].imageURL if p.images else None,
+        'url': url_for('property_detail', property_id=p.propertyId)
+    } for p in properties]
+    
+    return render_template('search/map.html', 
+                         properties=map_properties,
+                         api_key=app.config.get('MAPS_API_KEY', ''))
 
 if __name__ == '__main__':
     app.run(debug=True)

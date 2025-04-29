@@ -73,7 +73,7 @@
         <div class="col-lg-10">
             <div class="card">
                 <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">List Your Property</h4>
+                    <h4 class="mb-0">{{ 'Edit Property' if edit_mode else 'List Your Property' }}</h4>
                 </div>
                 <div class="card-body">
                     <form method="POST" id="propertyForm" enctype="multipart/form-data">
@@ -82,12 +82,6 @@
                         <!-- Basic Details -->
                         <h5 class="mb-4">Basic Details</h5>
                         <div class="row g-3 mb-4">
-                            <div class="col-md-12">
-                                <div class="form-floating">
-                                    {{ form.title(class="form-control", placeholder="Property Title") }}
-                                    {{ form.title.label }}
-                                </div>
-                            </div>
                             <div class="col-md-6">
                                 <div class="form-floating">
                                     {{ form.property_type(class="form-control", placeholder="Property Type") }}
@@ -140,16 +134,33 @@
                                     {{ form.carpet_area.label }}
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    {{ form.maintenance_charge(class="form-control", placeholder="Maintenance Charge") }}
+                                    {{ form.maintenance_charge.label }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
                                 <div class="form-floating">
                                     {{ form.listing_type(class="form-control", placeholder="Listing Type") }}
                                     {{ form.listing_type.label }}
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Building Details -->
+                        <h5 class="mb-4">Building Details</h5>
+                        <div class="row g-3 mb-4">
                             <div class="col-md-4">
                                 <div class="form-floating">
-                                    {{ form.furnishing_type(class="form-control", placeholder="Furnishing Type") }}
-                                    {{ form.furnishing_type.label }}
+                                    {{ form.total_floors(class="form-control", placeholder="Total Floors") }}
+                                    {{ form.total_floors.label }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    {{ form.floor_number(class="form-control", placeholder="Floor Number") }}
+                                    {{ form.floor_number.label }}
                                 </div>
                             </div>
                             <div class="col-md-4">
@@ -158,11 +169,49 @@
                                     {{ form.property_age.label }}
                                 </div>
                             </div>
-                            <div class="col-12">
+                            <div class="col-md-4">
                                 <div class="form-floating">
-                                    {{ form.description(class="form-control", placeholder="Description", style="height: 150px") }}
-                                    {{ form.description.label }}
+                                    {{ form.facing(class="form-control", placeholder="Property Facing") }}
+                                    {{ form.facing.label }}
                                 </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    {{ form.overlooking(class="form-control", placeholder="Overlooking") }}
+                                    {{ form.overlooking.label }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    {{ form.furnishing_type(class="form-control", placeholder="Furnishing Type") }}
+                                    {{ form.furnishing_type.label }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Utilities -->
+                        <h5 class="mb-4">Utilities</h5>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    {{ form.water_supply(class="form-control", placeholder="Water Supply") }}
+                                    {{ form.water_supply.label }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    {{ form.power_backup(class="form-control", placeholder="Power Backup") }}
+                                    {{ form.power_backup.label }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <h5 class="mb-4">Description</h5>
+                        <div class="mb-4">
+                            <div class="form-floating">
+                                {{ form.description(class="form-control", placeholder="Description", style="height: 150px") }}
+                                {{ form.description.label }}
                             </div>
                         </div>
 
@@ -193,13 +242,19 @@
 
                         <!-- Additional Options -->
                         <div class="row g-3 mb-4">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-check">
                                     {{ form.rera_registered(class="form-check-input") }}
                                     {{ form.rera_registered.label(class="form-check-label") }}
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    {{ form.ownership_type(class="form-control", placeholder="Ownership Type") }}
+                                    {{ form.ownership_type.label }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
                                 <div class="form-check">
                                     {{ form.featured(class="form-check-input") }}
                                     {{ form.featured.label(class="form-check-label") }}

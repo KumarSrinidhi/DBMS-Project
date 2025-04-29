@@ -89,6 +89,17 @@ ADD COLUMN ownershipType ENUM('Freehold', 'Leasehold') DEFAULT 'Freehold',
 ADD COLUMN listingType ENUM('Buy', 'Sell', 'Rent', 'New Projects') DEFAULT 'Sell',
 ADD COLUMN propertyCategory ENUM('Residential', 'Commercial', 'Agricultural') DEFAULT 'Residential';
 
+-- Alter Property table to add missing columns
+ALTER TABLE Property
+ADD COLUMN maintenanceCharge DECIMAL(12,2),
+ADD COLUMN totalFloors INT,
+ADD COLUMN floorNumber INT,
+ADD COLUMN waterSupply ENUM('24/7', 'Fixed Time', 'Borewell', 'Municipal') DEFAULT '24/7',
+ADD COLUMN facing ENUM('North', 'South', 'East', 'West', 'North-East', 'North-West', 'South-East', 'South-West'),
+ADD COLUMN overlooking VARCHAR(100),
+ADD COLUMN powerBackup ENUM('None', 'Partial', 'Full') DEFAULT 'None',
+ADD COLUMN description TEXT;
+
 /* Residential Property Details */
 CREATE TABLE ResidentialProperty (
     propertyId INT PRIMARY KEY,

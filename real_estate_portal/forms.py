@@ -40,9 +40,40 @@ class PropertyForm(FlaskForm):
     carpet_area = IntegerField('Carpet Area (sq.ft)', validators=[DataRequired()])
     latitude = FloatField('Latitude', validators=[Optional()])
     longitude = FloatField('Longitude', validators=[Optional()])
+    description = TextAreaField('Description', validators=[Optional()])
     
     property_type = SelectField('Property Type', coerce=int, validators=[DataRequired()])
     location = SelectField('Location', coerce=int, validators=[DataRequired()])
+    maintenance_charge = DecimalField('Maintenance Charge (₹/month)', validators=[Optional()])
+    total_floors = IntegerField('Total Floors', validators=[Optional()])
+    floor_number = IntegerField('Floor Number', validators=[Optional()])
+    
+    water_supply = SelectField('Water Supply', choices=[
+        ('24/7', '24/7 Water Supply'),
+        ('Fixed Time', 'Fixed Time Supply'),
+        ('Borewell', 'Borewell'),
+        ('Municipal', 'Municipal Connection')
+    ], validators=[Optional()])
+    
+    facing = SelectField('Property Facing', choices=[
+        ('North', 'North'),
+        ('South', 'South'),
+        ('East', 'East'),
+        ('West', 'West'),
+        ('North-East', 'North-East'),
+        ('North-West', 'North-West'),
+        ('South-East', 'South-East'),
+        ('South-West', 'South-West')
+    ], validators=[Optional()])
+    
+    overlooking = StringField('Overlooking', validators=[Optional()])
+    
+    power_backup = SelectField('Power Backup', choices=[
+        ('None', 'No Power Backup'),
+        ('Partial', 'Partial Backup'),
+        ('Full', 'Full Backup')
+    ], validators=[Optional()])
+    
     furnishing_type = SelectField('Furnishing Type', choices=[
         ('Unfurnished', 'Unfurnished'),
         ('Semi-Furnished', 'Semi-Furnished'),
@@ -79,7 +110,16 @@ class PropertyForm(FlaskForm):
         ('Garden', 'Garden'),
         ('Parking', 'Parking'),
         ('Security', 'Security'),
-        ('Playground', 'Playground')
+        ('Playground', 'Playground'),
+        ('Club House', 'Club House'),
+        ('Indoor Games', 'Indoor Games'),
+        ('Gas Pipeline', 'Gas Pipeline'),
+        ('Rain Water Harvesting', 'Rain Water Harvesting'),
+        ('Solar Panels', 'Solar Panels'),
+        ('Service Lift', 'Service Lift'),
+        ('Fire Safety', 'Fire Safety'),
+        ('Senior Citizen Area', 'Senior Citizen Area'),
+        ('Car Charging', 'EV Car Charging')
     ])
     
     rera_registered = BooleanField('RERA Registered')

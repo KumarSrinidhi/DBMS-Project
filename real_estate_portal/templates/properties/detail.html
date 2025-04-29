@@ -63,7 +63,10 @@
                 <div class="card-header bg-white">
                     <div class="d-flex justify-content-between align-items-center">
                         <h3 class="mb-0">{{ property.property_type.typeName }} in {{ property.location.city }}</h3>
-                        <span class="badge bg-primary">{{ property.listingType }}</span>
+                        <div>
+                            <span class="badge bg-primary">{{ property.listingType }}</span>
+                            <span class="badge bg-info ms-2">{{ property.propertyCategory }}</span>
+                        </div>
                     </div>
                     <p class="text-muted mb-0 mt-2">
                         <i class="bi bi-geo-alt"></i> {{ property.address }}
@@ -73,6 +76,9 @@
                     <div class="price-section mb-4">
                         <h4 class="text-primary mb-0">₹{{ "{:,.0f}".format(property.price) }}</h4>
                         <small class="text-muted">{{ property.carpetArea }} sq.ft (₹{{ "{:,.0f}".format(property.price / property.carpetArea) }}/sq.ft)</small>
+                        {% if property.maintenance_charge %}
+                        <p class="text-muted mb-0">Maintenance: ₹{{ "{:,.0f}".format(property.maintenance_charge) }}/month</p>
+                        {% endif %}
                     </div>
                     
                     <div class="property-highlights mb-4">
@@ -108,11 +114,96 @@
                         </div>
                     </div>
 
+                    <!-- Building Details -->
+                    <h5 class="mt-4 mb-3">Building Details</h5>
+                    <div class="row g-3 mb-4">
+                        {% if property.total_floors %}
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-layers me-2"></i>
+                                <div>
+                                    <small class="text-muted d-block">Total Floors</small>
+                                    <strong>{{ property.total_floors }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if property.floor_number %}
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-arrow-up-square me-2"></i>
+                                <div>
+                                    <small class="text-muted d-block">Floor Number</small>
+                                    <strong>{{ property.floor_number }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if property.facing %}
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-compass me-2"></i>
+                                <div>
+                                    <small class="text-muted d-block">Facing</small>
+                                    <strong>{{ property.facing }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if property.overlooking %}
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-binoculars me-2"></i>
+                                <div>
+                                    <small class="text-muted d-block">Overlooking</small>
+                                    <strong>{{ property.overlooking }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Utilities -->
+                    <h5 class="mb-3">Utilities</h5>
+                    <div class="row g-3 mb-4">
+                        {% if property.water_supply %}
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-droplet me-2"></i>
+                                <div>
+                                    <small class="text-muted d-block">Water Supply</small>
+                                    <strong>{{ property.water_supply }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if property.power_backup %}
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-lightning-charge me-2"></i>
+                                <div>
+                                    <small class="text-muted d-block">Power Backup</small>
+                                    <strong>{{ property.power_backup }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
                     <!-- Amenities Section -->
                     {% include 'includes/amenities.html' %}
                     
+                    <!-- Description -->
                     <h5 class="mt-4 mb-3">About This Property</h5>
-                    <p>Beautiful property located in prime location with all modern amenities. Close to schools, shopping centers, and public transport.</p>
+                    {% if property.description %}
+                        <p>{{ property.description }}</p>
+                    {% else %}
+                        <p>Beautiful property located in prime location with all modern amenities. Close to schools, shopping centers, and public transport.</p>
+                    {% endif %}
                 </div>
             </div>
 
@@ -194,6 +285,19 @@
                     </form>
                 </div>
             </div>
+
+            <!-- RERA Info -->
+            {% if property.reraRegistered %}
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="bi bi-patch-check-fill text-success me-2"></i>
+                        <h5 class="mb-0">RERA Registered</h5>
+                    </div>
+                    <p class="text-muted small mb-0">This property is registered under the Real Estate Regulatory Authority (RERA)</p>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -205,7 +309,7 @@
 <script>
     // Initialize Fancybox
     Fancybox.bind("[data-fancybox]", {
-        // Your custom options
+        // Options
     });
 
     // Initialize Swiper
@@ -215,89 +319,43 @@
         loop: true,
         pagination: {
             el: '.swiper-pagination',
-            clickable: true,
+            clickable: true
         },
         navigation: {
             nextEl: '.swiper-button-next',
-            prevEl: '.swiper-button-prev',
-        },
+            prevEl: '.swiper-button-prev'
+        }
     });
 
-    // Initialize map
-    const map = L.map('map').setView([12.9716, 77.5946], 13);
+    // Initialize Map
+    const map = L.map('map').setView([{{ property.latitude or 20.5937 }}, {{ property.longitude or 78.9629 }}], {{ 15 if property.latitude else 5 }});
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-    L.marker([12.9716, 77.5946]).addTo(map);
+
+    {% if property.latitude and property.longitude %}
+    L.marker([{{ property.latitude }}, {{ property.longitude }}])
+        .addTo(map)
+        .bindPopup("{{ property.address }}");
+    {% endif %}
+
+    // Favorite Toggle
+    function toggleFavorite() {
+        fetch('/favorite/{{ property.propertyId }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const btn = document.querySelector('.favorite-btn');
+            if (data.isFavorite) {
+                btn.innerHTML = '<i class="bi bi-heart-fill"></i>';
+                btn.classList.add('active');
+            } else {
+                btn.innerHTML = '<i class="bi bi-heart"></i>';
+                btn.classList.remove('active');
+            }
+        });
+    }
 </script>
-
-<style>
-.quick-action-bar {
-    z-index: 1020;
-}
-
-.property-gallery {
-    position: relative;
-}
-
-.property-swiper {
-    --swiper-theme-color: #007bff;
-    --swiper-navigation-size: 22px;
-}
-
-.swiper-button-next,
-.swiper-button-prev {
-    width: 40px;
-    height: 40px;
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 50%;
-}
-
-.swiper-pagination-bullet-active {
-    background: var(--swiper-theme-color);
-}
-
-.contact-card {
-    border: none;
-    box-shadow: 0 0 20px rgba(0,0,0,0.1);
-    border-radius: 15px;
-}
-
-.owner-avatar {
-    width: 80px;
-    height: 80px;
-    background: #f8f9fa;
-    border-radius: 50%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: #007bff;
-}
-
-.input-group-text {
-    background: none;
-    border-right: none;
-}
-
-.input-group .form-control {
-    border-left: none;
-}
-
-.input-group .form-control:focus {
-    border-color: #dee2e6;
-    box-shadow: none;
-}
-
-.highlight-item {
-    transition: transform 0.2s ease;
-}
-
-.highlight-item:hover {
-    transform: translateY(-5px);
-}
-
-.highlight-item i {
-    font-size: 1.5rem;
-    color: var(--primary-color);
-    display: block;
-}
-</style>
 {% endblock %}

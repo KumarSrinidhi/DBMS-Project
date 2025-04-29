@@ -1,48 +1,36 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container properties-container">
+<div class="container py-4">
     <div class="row">
-        <!-- Filter Sidebar -->
+        <!-- Filters Sidebar -->
         <div class="col-lg-3">
-            <div class="card filters-sidebar sticky-top" style="top: 2rem;">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">Filters</h5>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Filter Properties</h5>
                 </div>
                 <div class="card-body">
-                    <form method="get" action="{{ url_for('properties') }}">
-                        <div class="filter-section">
-                            <label class="form-label">City</label>
-                            <select class="form-select" name="city">
-                                <option value="">All Cities</option>
-                                {% for city in cities %}
-                                <option value="{{ city.city }}" {% if request.args.get('city') == city.city %}selected{% endif %}>
-                                    {{ city.city }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        
-                        <div class="filter-section">
+                    <form method="GET" action="{{ url_for('properties') }}">
+                        <!-- Price Range -->
+                        <div class="filter-section mb-4">
                             <label class="form-label">Price Range</label>
-                            <div class="price-range">
-                                <input type="range" class="form-range mb-2" id="priceRange" 
-                                       min="0" max="10000000" step="100000"
-                                       value="{{ request.args.get('max_price', '5000000') }}">
-                                <div class="d-flex justify-content-between">
-                                    <span>₹0</span>
-                                    <span id="priceValue">₹{{ "{:,.0f}".format(request.args.get('max_price', 5000000)|float) }}</span>
-                                    <span>₹1Cr</span>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <input type="number" class="form-control" name="min_price" placeholder="Min" 
+                                           value="{{ request.args.get('min_price') }}">
                                 </div>
-                                <input type="hidden" name="max_price" id="maxPrice" 
-                                       value="{{ request.args.get('max_price', '') }}">
+                                <div class="col-6">
+                                    <input type="number" class="form-control" name="max_price" placeholder="Max"
+                                           value="{{ request.args.get('max_price') }}">
+                                </div>
                             </div>
                         </div>
 
-                        <div class="filter-section">
+                        <!-- Property Type -->
+                        <div class="filter-section mb-4">
                             <label class="form-label">Property Type</label>
                             <select class="form-select" name="type">
-                                <option value="">All Types</option>
+                                <option value="">Any Type</option>
                                 {% for type in property_types %}
                                 <option value="{{ type.typeId }}" {% if request.args.get('type') == type.typeId|string %}selected{% endif %}>
                                     {{ type.typeName }}
@@ -51,19 +39,113 @@
                             </select>
                         </div>
 
-                        <div class="filter-section">
-                            <label class="form-label">Furnishing</label>
-                            <div class="furnishing-options">
-                                {% for type in ['Unfurnished', 'Semi-Furnished', 'Fully Furnished'] %}
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="furnishing" 
-                                           value="{{ type }}" id="furnishing{{ loop.index }}"
-                                           {% if type in request.args.getlist('furnishing') %}checked{% endif %}>
-                                    <label class="form-check-label" for="furnishing{{ loop.index }}">
-                                        {{ type }}
-                                    </label>
+                        <!-- Property Category -->
+                        <div class="filter-section mb-4">
+                            <label class="form-label">Category</label>
+                            <select class="form-select" name="category">
+                                <option value="">Any Category</option>
+                                <option value="Residential" {% if request.args.get('category') == 'Residential' %}selected{% endif %}>Residential</option>
+                                <option value="Commercial" {% if request.args.get('category') == 'Commercial' %}selected{% endif %}>Commercial</option>
+                                <option value="Agricultural" {% if request.args.get('category') == 'Agricultural' %}selected{% endif %}>Agricultural</option>
+                            </select>
+                        </div>
+
+                        <!-- Listing Type -->
+                        <div class="filter-section mb-4">
+                            <label class="form-label">Listing Type</label>
+                            <select class="form-select" name="listing_type">
+                                <option value="">Any Type</option>
+                                <option value="Buy" {% if request.args.get('listing_type') == 'Buy' %}selected{% endif %}>Buy</option>
+                                <option value="Rent" {% if request.args.get('listing_type') == 'Rent' %}selected{% endif %}>Rent</option>
+                                <option value="New Projects" {% if request.args.get('listing_type') == 'New Projects' %}selected{% endif %}>New Projects</option>
+                            </select>
+                        </div>
+
+                        <!-- Carpet Area -->
+                        <div class="filter-section mb-4">
+                            <label class="form-label">Carpet Area (sq.ft)</label>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <input type="number" class="form-control" name="min_area" placeholder="Min"
+                                           value="{{ request.args.get('min_area') }}">
                                 </div>
-                                {% endfor %}
+                                <div class="col-6">
+                                    <input type="number" class="form-control" name="max_area" placeholder="Max"
+                                           value="{{ request.args.get('max_area') }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Property Age -->
+                        <div class="filter-section mb-4">
+                            <label class="form-label">Property Age</label>
+                            <select class="form-select" name="property_age">
+                                <option value="">Any Age</option>
+                                <option value="New" {% if request.args.get('property_age') == 'New' %}selected{% endif %}>New Construction</option>
+                                <option value="1-5 years" {% if request.args.get('property_age') == '1-5 years' %}selected{% endif %}>1-5 Years</option>
+                                <option value="5-10 years" {% if request.args.get('property_age') == '5-10 years' %}selected{% endif %}>5-10 Years</option>
+                                <option value="10+ years" {% if request.args.get('property_age') == '10+ years' %}selected{% endif %}>10+ Years</option>
+                            </select>
+                        </div>
+
+                        <!-- Furnishing -->
+                        <div class="filter-section mb-4">
+                            <label class="form-label">Furnishing</label>
+                            <select class="form-select" name="furnishing">
+                                <option value="">Any</option>
+                                <option value="Unfurnished" {% if request.args.get('furnishing') == 'Unfurnished' %}selected{% endif %}>Unfurnished</option>
+                                <option value="Semi-Furnished" {% if request.args.get('furnishing') == 'Semi-Furnished' %}selected{% endif %}>Semi-Furnished</option>
+                                <option value="Fully Furnished" {% if request.args.get('furnishing') == 'Fully Furnished' %}selected{% endif %}>Fully Furnished</option>
+                            </select>
+                        </div>
+
+                        <!-- Facing -->
+                        <div class="filter-section mb-4">
+                            <label class="form-label">Facing</label>
+                            <select class="form-select" name="facing">
+                                <option value="">Any Direction</option>
+                                <option value="North" {% if request.args.get('facing') == 'North' %}selected{% endif %}>North</option>
+                                <option value="South" {% if request.args.get('facing') == 'South' %}selected{% endif %}>South</option>
+                                <option value="East" {% if request.args.get('facing') == 'East' %}selected{% endif %}>East</option>
+                                <option value="West" {% if request.args.get('facing') == 'West' %}selected{% endif %}>West</option>
+                                <option value="North-East" {% if request.args.get('facing') == 'North-East' %}selected{% endif %}>North-East</option>
+                                <option value="North-West" {% if request.args.get('facing') == 'North-West' %}selected{% endif %}>North-West</option>
+                                <option value="South-East" {% if request.args.get('facing') == 'South-East' %}selected{% endif %}>South-East</option>
+                                <option value="South-West" {% if request.args.get('facing') == 'South-West' %}selected{% endif %}>South-West</option>
+                            </select>
+                        </div>
+
+                        <!-- Water Supply -->
+                        <div class="filter-section mb-4">
+                            <label class="form-label">Water Supply</label>
+                            <select class="form-select" name="water_supply">
+                                <option value="">Any Type</option>
+                                <option value="24/7" {% if request.args.get('water_supply') == '24/7' %}selected{% endif %}>24/7 Water Supply</option>
+                                <option value="Fixed Time" {% if request.args.get('water_supply') == 'Fixed Time' %}selected{% endif %}>Fixed Time Supply</option>
+                                <option value="Borewell" {% if request.args.get('water_supply') == 'Borewell' %}selected{% endif %}>Borewell</option>
+                                <option value="Municipal" {% if request.args.get('water_supply') == 'Municipal' %}selected{% endif %}>Municipal Connection</option>
+                            </select>
+                        </div>
+
+                        <!-- Power Backup -->
+                        <div class="filter-section mb-4">
+                            <label class="form-label">Power Backup</label>
+                            <select class="form-select" name="power_backup">
+                                <option value="">Any Type</option>
+                                <option value="None" {% if request.args.get('power_backup') == 'None' %}selected{% endif %}>No Power Backup</option>
+                                <option value="Partial" {% if request.args.get('power_backup') == 'Partial' %}selected{% endif %}>Partial Backup</option>
+                                <option value="Full" {% if request.args.get('power_backup') == 'Full' %}selected{% endif %}>Full Backup</option>
+                            </select>
+                        </div>
+
+                        <!-- RERA Status -->
+                        <div class="filter-section mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="rera_registered" id="reraFilter"
+                                       {% if request.args.get('rera_registered') %}checked{% endif %}>
+                                <label class="form-check-label" for="reraFilter">
+                                    RERA Registered Only
+                                </label>
                             </div>
                         </div>
 
@@ -89,23 +171,21 @@
                     </select>
                 </div>
             </div>
-            
-            <div class="row g-4">
+
+            <!-- Property Cards -->
+            <div class="row g-4 mt-3">
                 {% for property in properties.items %}
-                <div class="col-md-6" data-aos="fade-up" data-aos-delay="{{ loop.index * 100 }}">
+                <div class="col-md-6">
                     <div class="card h-100 property-card">
                         <div class="position-relative">
                             {% if property.images %}
-                                {% set primary_image = property.images|selectattr('isPrimary', 'equalto', True)|first %}
                                 <img src="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/1.jpg') }}" 
-                                     class="card-img-top" 
-                                     alt="{{ property.property_type.typeName }}"
+                                     class="card-img-top" alt="{{ property.property_type.typeName }}"
                                      style="height: 250px; object-fit: cover;"
                                      onerror="this.src='{{ url_for('static', filename='images/properties/1.jpg') }}'">
                             {% else %}
                                 <img src="{{ url_for('static', filename='images/properties/1.jpg') }}" 
-                                     class="card-img-top" 
-                                     alt="{{ property.property_type.typeName }}"
+                                     class="card-img-top" alt="{{ property.property_type.typeName }}"
                                      style="height: 250px; object-fit: cover;">
                             {% endif %}
                             <span class="position-absolute top-0 end-0 m-3 badge bg-primary">
@@ -138,6 +218,24 @@
                                     <i class="bi bi-calendar-check"></i>
                                     {{ property.propertyAge }}
                                 </div>
+                                {% if property.maintenance_charge %}
+                                <div class="feature-item">
+                                    <i class="bi bi-currency-rupee"></i>
+                                    {{ "{:,.0f}".format(property.maintenance_charge) }}/month
+                                </div>
+                                {% endif %}
+                                {% if property.facing %}
+                                <div class="feature-item">
+                                    <i class="bi bi-compass"></i>
+                                    {{ property.facing }}
+                                </div>
+                                {% endif %}
+                                {% if property.water_supply %}
+                                <div class="feature-item">
+                                    <i class="bi bi-droplet"></i>
+                                    {{ property.water_supply }}
+                                </div>
+                                {% endif %}
                             </div>
                         </div>
                         <div class="card-footer bg-white border-top-0">
@@ -154,47 +252,47 @@
                 </div>
                 {% endfor %}
             </div>
-            
+
             <!-- Pagination -->
-            <nav class="mt-4" aria-label="Page navigation">
+            {% if properties.pages > 1 %}
+            <nav class="mt-4">
                 <ul class="pagination justify-content-center">
                     {% if properties.has_prev %}
                     <li class="page-item">
-                        {% set args = dict(request.args) %}
-                        {% set _ = args.update({'page': properties.prev_num}) %}
-                        <a class="page-link" href="{{ url_for('properties', **args) }}">
-                            <i class="bi bi-chevron-left"></i>
-                        </a>
+                        {% set args = request.args.copy() %}
+                        {% set _ = args.pop('page', None) %}
+                        <a class="page-link" href="{{ url_for('properties', page=properties.prev_num, **args) }}">Previous</a>
                     </li>
                     {% endif %}
-                    
+
                     {% for page_num in properties.iter_pages() %}
-                    {% if page_num %}
-                    <li class="page-item {% if page_num == properties.page %}active{% endif %}">
-                        {% set args = dict(request.args) %}
-                        {% set _ = args.update({'page': page_num}) %}
-                        <a class="page-link" href="{{ url_for('properties', **args) }}">
-                            {{ page_num }}
-                        </a>
-                    </li>
-                    {% else %}
-                    <li class="page-item disabled">
-                        <span class="page-link">...</span>
-                    </li>
-                    {% endif %}
+                        {% if page_num %}
+                            {% if page_num == properties.page %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% else %}
+                            <li class="page-item">
+                                {% set args = request.args.copy() %}
+                                {% set _ = args.pop('page', None) %}
+                                <a class="page-link" href="{{ url_for('properties', page=page_num, **args) }}">{{ page_num }}</a>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
                     {% endfor %}
-                    
+
                     {% if properties.has_next %}
                     <li class="page-item">
-                        {% set args = dict(request.args) %}
-                        {% set _ = args.update({'page': properties.next_num}) %}
-                        <a class="page-link" href="{{ url_for('properties', **args) }}">
-                            <i class="bi bi-chevron-right"></i>
-                        </a>
+                        {% set args = request.args.copy() %}
+                        {% set _ = args.pop('page', None) %}
+                        <a class="page-link" href="{{ url_for('properties', page=properties.next_num, **args) }}">Next</a>
                     </li>
                     {% endif %}
                 </ul>
             </nav>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -202,30 +300,22 @@
 
 {% block scripts %}
 <script>
-// Handle price range input
-const priceRange = document.getElementById('priceRange');
-const priceValue = document.getElementById('priceValue');
-const maxPrice = document.getElementById('maxPrice');
-
-priceRange.addEventListener('input', function() {
-    const value = parseInt(this.value);
-    maxPrice.value = value;
-    priceValue.textContent = '₹' + value.toLocaleString();
-});
-
-// Handle sort order changes
 document.getElementById('sortOrder').addEventListener('change', function() {
-    const url = new URL(window.location);
-    url.searchParams.set('sort', this.value);
-    window.location = url;
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('sort', this.value);
+    window.location.search = urlParams.toString();
 });
 
-// Handle favorite button clicks
+// Initialize sort order from URL
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.has('sort')) {
+    document.getElementById('sortOrder').value = urlParams.get('sort');
+}
+
+// Handle favorites
 document.querySelectorAll('.favorite-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         const propertyId = this.dataset.propertyId;
-        const icon = this.querySelector('i');
-        
         fetch(`/favorite/${propertyId}`, {
             method: 'POST',
             headers: {
@@ -235,15 +325,11 @@ document.querySelectorAll('.favorite-btn').forEach(btn => {
         .then(response => response.json())
         .then(data => {
             if (data.status === 'added') {
-                icon.classList.remove('bi-heart');
-                icon.classList.add('bi-heart-fill');
-                this.classList.remove('btn-outline-danger');
-                this.classList.add('btn-danger');
+                this.innerHTML = '<i class="bi bi-heart-fill"></i>';
+                this.classList.add('active');
             } else {
-                icon.classList.remove('bi-heart-fill');
-                icon.classList.add('bi-heart');
-                this.classList.remove('btn-danger');
-                this.classList.add('btn-outline-danger');
+                this.innerHTML = '<i class="bi bi-heart"></i>';
+                this.classList.remove('active');
             }
         });
     });

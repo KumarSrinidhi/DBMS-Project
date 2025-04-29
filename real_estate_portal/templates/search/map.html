@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block styles %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<style>
+.map-container {
+    height: calc(100vh - 150px);
+    min-height: 500px;
+}
+
+.property-card-mini {
+    max-width: 300px;
+}
+
+.property-card-mini img {
+    height: 150px;
+    object-fit: cover;
+}
+
+.map-filters {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    max-width: 300px;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+}
+
+.property-cluster {
+    background: var(--primary);
+    border-radius: 50%;
+    color: white;
+    width: 36px;
+    height: 36px;
+    line-height: 36px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.cluster-small {
+    background: var(--success);
+    width: 30px;
+    height: 30px;
+    line-height: 30px;
+}
+
+.cluster-medium {
+    background: var(--warning);
+    width: 34px;
+    height: 34px;
+    line-height: 34px;
+}
+
+.cluster-large {
+    background: var(--danger);
+    width: 38px;
+    height: 38px;
+    line-height: 38px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="position-relative">
+    <!-- Map Filters -->
+    <div class="map-filters">
+        <h5 class="mb-3">Filter Properties</h5>
+        <form id="mapFilters">
+            <!-- Price Range -->
+            <div class="mb-3">
+                <label class="form-label">Price Range</label>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <input type="number" class="form-control form-control-sm" name="min_price" placeholder="Min">
+                    </div>
+                    <div class="col-6">
+                        <input type="number" class="form-control form-control-sm" name="max_price" placeholder="Max">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Property Type -->
+            <div class="mb-3">
+                <label class="form-label">Property Type</label>
+                <select class="form-select form-select-sm" name="property_type">
+                    <option value="">Any Type</option>
+                    <option value="residential">Residential</option>
+                    <option value="commercial">Commercial</option>
+                    <option value="agricultural">Agricultural</option>
+                </select>
+            </div>
+
+            <!-- Listing Type -->
+            <div class="mb-3">
+                <label class="form-label">Listing Type</label>
+                <select class="form-select form-select-sm" name="listing_type">
+                    <option value="">Any Type</option>
+                    <option value="Buy">Buy</option>
+                    <option value="Rent">Rent</option>
+                    <option value="New Projects">New Projects</option>
+                </select>
+            </div>
+
+            <!-- Bedrooms -->
+            <div class="mb-3">
+                <label class="form-label">Carpet Area (sq.ft)</label>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <input type="number" class="form-control form-control-sm" name="min_area" placeholder="Min">
+                    </div>
+                    <div class="col-6">
+                        <input type="number" class="form-control form-control-sm" name="max_area" placeholder="Max">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Property Age -->
+            <div class="mb-3">
+                <label class="form-label">Property Age</label>
+                <select class="form-select form-select-sm" name="property_age">
+                    <option value="">Any Age</option>
+                    <option value="New">New Construction</option>
+                    <option value="1-5 years">1-5 Years</option>
+                    <option value="5-10 years">5-10 Years</option>
+                    <option value="10+ years">10+ Years</option>
+                </select>
+            </div>
+
+            <!-- Furnishing -->
+            <div class="mb-3">
+                <label class="form-label">Furnishing</label>
+                <select class="form-select form-select-sm" name="furnishing">
+                    <option value="">Any</option>
+                    <option value="Unfurnished">Unfurnished</option>
+                    <option value="Semi-Furnished">Semi-Furnished</option>
+                    <option value="Fully Furnished">Fully Furnished</option>
+                </select>
+            </div>
+
+            <!-- Facing -->
+            <div class="mb-3">
+                <label class="form-label">Facing</label>
+                <select class="form-select form-select-sm" name="facing">
+                    <option value="">Any Direction</option>
+                    <option value="North">North</option>
+                    <option value="South">South</option>
+                    <option value="East">East</option>
+                    <option value="West">West</option>
+                    <option value="North-East">North-East</option>
+                    <option value="North-West">North-West</option>
+                    <option value="South-East">South-East</option>
+                    <option value="South-West">South-West</option>
+                </select>
+            </div>
+
+            <!-- Additional Features -->
+            <div class="mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="rera_registered" id="reraFilter">
+                    <label class="form-check-label" for="reraFilter">
+                        RERA Registered Only
+                    </label>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-sm w-100">Apply Filters</button>
+        </form>
+    </div>
+
+    <!-- Map Container -->
+    <div id="map" class="map-container"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+<script>
+// Initialize map
+const map = L.map('map').setView([20.5937, 78.9629], 5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+// Initialize marker cluster group
+const markers = L.markerClusterGroup({
+    iconCreateFunction: function(cluster) {
+        const count = cluster.getChildCount();
+        let size = 'small';
+        if (count > 50) size = 'large';
+        else if (count > 20) size = 'medium';
+        
+        return L.divIcon({
+            html: count,
+            className: `property-cluster cluster-${size}`,
+            iconSize: L.point(40, 40)
+        });
+    }
+});
+
+// Property data from Flask
+const properties = {{ properties|tojson|safe }};
+
+// Create markers for each property
+properties.forEach(property => {
+    const marker = L.marker([property.lat, property.lng]);
+    
+    const popupContent = `
+        <div class="property-card-mini">
+            <img src="${property.image || '/static/images/properties/1.jpg'}" 
+                 class="w-100 mb-2" 
+                 alt="${property.title}">
+            <h6 class="mb-1">${property.title}</h6>
+            <p class="text-primary mb-1">₹${property.price.toLocaleString('en-IN')}</p>
+            <p class="text-muted small mb-2">${property.area} sq.ft | ${property.type}</p>
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="badge bg-primary">${property.listing_type}</span>
+                <a href="${property.url}" class="btn btn-sm btn-outline-primary">View Details</a>
+            </div>
+        </div>
+    `;
+    
+    marker.bindPopup(popupContent);
+    markers.addLayer(marker);
+});
+
+map.addLayer(markers);
+
+// Handle filter form submission
+document.getElementById('mapFilters').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const params = new URLSearchParams();
+    
+    for (let [key, value] of formData.entries()) {
+        if (value) params.append(key, value);
+    }
+    
+    // Fetch filtered properties
+    fetch(`/api/properties/search?${params.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+            markers.clearLayers();
+            
+            data.properties.forEach(property => {
+                if (property.latitude && property.longitude) {
+                    const marker = L.marker([property.latitude, property.longitude]);
+                    const popupContent = `
+                        <div class="property-card-mini">
+                            <img src="${property.images[0] || '/static/images/properties/1.jpg'}" 
+                                 class="w-100 mb-2" 
+                                 alt="${property.type}">
+                            <h6 class="mb-1">${property.type} in ${property.city}</h6>
+                            <p class="text-primary mb-1">₹${property.price.toLocaleString('en-IN')}</p>
+                            <p class="text-muted small mb-2">${property.carpet_area} sq.ft | ${property.category}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="badge bg-primary">${property.listing_type}</span>
+                                <a href="/property/${property.id}" class="btn btn-sm btn-outline-primary">View Details</a>
+                            </div>
+                        </div>
+                    `;
+                    marker.bindPopup(popupContent);
+                    markers.addLayer(marker);
+                }
+            });
+        });
+});
+</script>
+{% endblock %}

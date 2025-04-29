@@ -57,181 +57,218 @@
     color: #dc3545;
     font-weight: 500;
 }
+
+.comparison-table th:not(:first-child) {
+    min-width: 250px;
+}
+
+.comparison-table td:not(:first-child) {
+    vertical-align: middle;
+}
+
+.table-light {
+    background-color: var(--bs-light);
+}
+
+.table-light td {
+    font-weight: bold;
+}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3>Compare Properties</h3>
-        <button class="btn btn-outline-primary" id="addPropertyBtn">
-            <i class="bi bi-plus-lg me-2"></i>Add Property
-        </button>
-    </div>
-
-    <!-- Property Cards -->
-    <div class="row g-4 mb-5">
-        {% for property in properties %}
-        <div class="col-md-4">
-            <div class="card h-100">
-                <div class="property-image mb-3">
-                    {% if property.images %}
-                        <img src="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/1.jpg') }}" 
-                             class="card-img-top" 
-                             alt="{{ property.property_type.typeName }}"
-                             style="height: 200px; object-fit: cover;"
-                             onerror="this.src='{{ url_for('static', filename='images/properties/1.jpg') }}'">
-                    {% else %}
-                        <img src="{{ url_for('static', filename='images/properties/1.jpg') }}" 
-                             class="card-img-top" 
-                             alt="{{ property.property_type.typeName }}"
-                             style="height: 200px; object-fit: cover;">
-                    {% endif %}
-                    <span class="remove-property" onclick="removeProperty({{ property.propertyId }})">
-                        <i class="bi bi-x-lg"></i>
-                    </span>
-                </div>
-                <div class="card-body">
-                    <h5 class="card-title">{{ property.property_type.typeName }}</h5>
-                    <p class="text-muted">
-                        <i class="bi bi-geo-alt"></i> {{ property.location.city }}
-                    </p>
-                    <div class="price-section">
-                        <h4 class="text-primary mb-1">₹{{ "{:,.0f}".format(property.price) }}</h4>
-                        <small class="text-muted">₹{{ "{:,.0f}".format(property.price / property.carpetArea) }}/sq.ft</small>
-                    </div>
-                </div>
-            </div>
+<div class="container py-4">
+    <div class="card">
+        <div class="card-header bg-white">
+            <h4 class="mb-0">Compare Properties</h4>
         </div>
-        {% endfor %}
-        {% if properties|length < 3 %}
-        <div class="col-md-4">
-            <div class="add-property-card" data-bs-toggle="modal" data-bs-target="#addPropertyModal">
-                <div class="text-center">
-                    <i class="bi bi-plus-circle display-4 mb-2"></i>
-                    <h5>Add Property</h5>
-                    <p class="text-muted">Compare up to 3 properties</p>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-    </div>
+        <div class="card-body">
+            {% if properties %}
+                <div class="table-responsive">
+                    <table class="table table-bordered comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Features</th>
+                                {% for property in properties %}
+                                <th class="text-center">
+                                    <div class="position-relative mb-3">
+                                        {% if property.images %}
+                                        <img src="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/1.jpg') }}"
+                                             class="img-fluid rounded" alt="{{ property.property_type.typeName }}"
+                                             style="height: 200px; width: 100%; object-fit: cover;">
+                                        {% else %}
+                                        <img src="{{ url_for('static', filename='images/properties/1.jpg') }}"
+                                             class="img-fluid rounded" alt="{{ property.property_type.typeName }}"
+                                             style="height: 200px; width: 100%; object-fit: cover;">
+                                        {% endif %}
+                                        <form method="GET" class="position-absolute top-0 end-0 m-2">
+                                            <input type="hidden" name="remove" value="{{ property.propertyId }}">
+                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                <i class="bi bi-x"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                    <h5 class="mb-2">{{ property.property_type.typeName }}</h5>
+                                    <p class="text-primary h5 mb-2">₹{{ "{:,.0f}".format(property.price) }}</p>
+                                    <p class="text-muted mb-0">{{ property.location.city }}</p>
+                                </th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Basic Details -->
+                            <tr class="table-light">
+                                <td colspan="{{ properties|length + 1 }}"><strong>Basic Details</strong></td>
+                            </tr>
+                            <tr>
+                                <td>Category</td>
+                                {% for property in properties %}
+                                <td class="text-center">{{ property.propertyCategory }}</td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <td>Listing Type</td>
+                                {% for property in properties %}
+                                <td class="text-center">{{ property.listingType }}</td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <td>Price per sq.ft</td>
+                                {% for property in properties %}
+                                <td class="text-center">₹{{ "{:,.0f}".format(property.price / property.carpetArea) }}</td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <td>Carpet Area</td>
+                                {% for property in properties %}
+                                <td class="text-center">{{ property.carpetArea }} sq.ft</td>
+                                {% endfor %}
+                            </tr>
 
-    <!-- Comparison Table -->
-    <div class="table-responsive">
-        <table class="table comparison-table">
-            <thead>
-                <tr>
-                    <th>Feature</th>
-                    {% for property in properties %}
-                    <th>{{ property.property_type.typeName }}</th>
-                    {% endfor %}
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>Price</td>
-                    {% for property in properties %}
-                    <td>₹{{ "{:,.0f}".format(property.price) }}</td>
-                    {% endfor %}
-                </tr>
-                <tr>
-                    <td>Price per sq.ft</td>
-                    {% for property in properties %}
-                    <td>₹{{ "{:,.0f}".format(property.price / property.carpetArea) }}</td>
-                    {% endfor %}
-                </tr>
-                <tr>
-                    <td>Area</td>
-                    {% for property in properties %}
-                    <td>{{ property.carpetArea }} sq.ft</td>
-                    {% endfor %}
-                </tr>
-                <tr>
-                    <td>Type</td>
-                    {% for property in properties %}
-                    <td>{{ property.property_type.typeName }}</td>
-                    {% endfor %}
-                </tr>
-                <tr>
-                    <td>Location</td>
-                    {% for property in properties %}
-                    <td>{{ property.location.city }}, {{ property.location.state }}</td>
-                    {% endfor %}
-                </tr>
-                <tr>
-                    <td>Furnishing</td>
-                    {% for property in properties %}
-                    <td>{{ property.furnishingType }}</td>
-                    {% endfor %}
-                </tr>
-                <tr>
-                    <td>Age</td>
-                    {% for property in properties %}
-                    <td>{{ property.propertyAge }}</td>
-                    {% endfor %}
-                </tr>
-                <tr>
-                    <td>Ownership</td>
-                    {% for property in properties %}
-                    <td>{{ property.ownershipType }}</td>
-                    {% endfor %}
-                </tr>
-                <tr>
-                    <td>RERA Status</td>
-                    {% for property in properties %}
-                    <td>
-                        {% if property.reraRegistered %}
-                        <span class="badge bg-success">
-                            <i class="bi bi-check-circle me-1"></i>Verified
-                        </span>
-                        {% else %}
-                        <span class="badge bg-warning">
-                            <i class="bi bi-exclamation-triangle me-1"></i>Not Verified
-                        </span>
-                        {% endif %}
-                    </td>
-                    {% endfor %}
-                </tr>
-                <tr>
-                    <td>Amenities</td>
-                    {% for property in properties %}
-                    <td>
-                        <div class="amenities-list">
-                            {% for amenity in property.amenities %}
-                            <div class="amenity-item mb-1">
-                                <img src="{{ url_for('static', filename='images/properties/' ~ amenity.name|lower|replace(' ', '-') ~ '.png') }}" 
-                                     alt="{{ amenity.name }}" width="16" height="16" class="me-1"
-                                     onerror="this.src='{{ url_for('static', filename='images/properties/1.jpg') }}'">
-                                {{ amenity.name }}
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </td>
-                    {% endfor %}
-                </tr>
-            </tbody>
-        </table>
-    </div>
-</div>
+                            <!-- Location -->
+                            <tr class="table-light">
+                                <td colspan="{{ properties|length + 1 }}"><strong>Location</strong></td>
+                            </tr>
+                            <tr>
+                                <td>Address</td>
+                                {% for property in properties %}
+                                <td class="text-center">{{ property.address }}</td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <td>City</td>
+                                {% for property in properties %}
+                                <td class="text-center">{{ property.location.city }}</td>
+                                {% endfor %}
+                            </tr>
 
-<!-- Add Property Modal -->
-<div class="modal fade" id="addPropertyModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Add Property to Compare</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <input type="text" class="form-control" id="propertySearch" 
-                           placeholder="Search properties by location or type...">
+                            <!-- Building Details -->
+                            <tr class="table-light">
+                                <td colspan="{{ properties|length + 1 }}"><strong>Building Details</strong></td>
+                            </tr>
+                            <tr>
+                                <td>Total Floors</td>
+                                {% for property in properties %}
+                                <td class="text-center">{{ property.totalFloors }}</td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <td>Floor Number</td>
+                                {% for property in properties %}
+                                <td class="text-center">{{ property.floorNumber }}</td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <td>Property Age</td>
+                                {% for property in properties %}
+                                <td class="text-center">{{ property.propertyAge }}</td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <td>Facing</td>
+                                {% for property in properties %}
+                                <td class="text-center">{{ property.facing }}</td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <td>Overlooking</td>
+                                {% for property in properties %}
+                                <td class="text-center">{{ property.overlooking }}</td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <td>Furnishing Type</td>
+                                {% for property in properties %}
+                                <td class="text-center">{{ property.furnishingType }}</td>
+                                {% endfor %}
+                            </tr>
+
+                            <!-- Utilities -->
+                            <tr class="table-light">
+                                <td colspan="{{ properties|length + 1 }}"><strong>Utilities</strong></td>
+                            </tr>
+                            <tr>
+                                <td>Water Supply</td>
+                                {% for property in properties %}
+                                <td class="text-center">{{ property.waterSupply }}</td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <td>Power Backup</td>
+                                {% for property in properties %}
+                                <td class="text-center">{{ property.powerBackup }}</td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <td>Maintenance</td>
+                                {% for property in properties %}
+                                <td class="text-center">₹{{ "{:,.0f}".format(property.maintenanceCharge) if property.maintenanceCharge else 'N/A' }}</td>
+                                {% endfor %}
+                            </tr>
+
+                            <!-- Additional Features -->
+                            <tr class="table-light">
+                                <td colspan="{{ properties|length + 1 }}"><strong>Additional Features</strong></td>
+                            </tr>
+                            <tr>
+                                <td>RERA Status</td>
+                                {% for property in properties %}
+                                <td class="text-center">
+                                    {% if property.reraRegistered %}
+                                    <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Registered</span>
+                                    {% else %}
+                                    <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Not Registered</span>
+                                    {% endif %}
+                                </td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <td>Ownership Type</td>
+                                {% for property in properties %}
+                                <td class="text-center">{{ property.ownershipType }}</td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <td>Amenities</td>
+                                {% for property in properties %}
+                                <td class="text-center">
+                                    {% for amenity in property.amenities %}
+                                    <span class="badge bg-primary mb-1">{{ amenity.amenity.name }}</span><br>
+                                    {% endfor %}
+                                </td>
+                                {% endfor %}
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-                <div class="row g-4" id="propertySearchResults">
-                    <!-- Search results will be loaded here -->
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-clipboard-data display-1 text-muted mb-3"></i>
+                    <h4>No Properties Selected for Comparison</h4>
+                    <p class="text-muted">Add properties to compare by clicking the "Compare" button on property cards.</p>
+                    <a href="{{ url_for('properties') }}" class="btn btn-primary">Browse Properties</a>
                 </div>
-            </div>
+            {% endif %}
         </div>
     </div>
 </div>
