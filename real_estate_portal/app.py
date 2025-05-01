@@ -5,7 +5,7 @@ from config import Config
 from forms import LoginForm, RegistrationForm, PropertyForm
 import os
 import random
-from sqlalchemy import and_, or_, not_
+from sqlalchemy import and_, or_, not_, text
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__, static_url_path='/static', static_folder='static')
@@ -77,7 +77,21 @@ init_db()
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    user = User.query.get(int(user_id))
+    if user and user.isBanned:
+        return None  # Return None for banned users which will log them out
+    return user
+
+# Add before_request middleware to check ban status
+@app.before_request
+def check_user_ban_status():
+    # Only check if user is authenticated
+    if current_user.is_authenticated:
+        user = User.query.get(current_user.userId)
+        if user and user.isBanned:
+            logout_user()
+            flash('Your account has been banned. Please contact the administrator.', 'danger')
+            return redirect(url_for('login'))
 
 # Create database tables
 with app.app_context():
@@ -97,6 +111,9 @@ def login():
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data).first()
         if user and user.check_password(form.password.data):
+            if user.isBanned:
+                flash('Your account has been banned. Please contact the administrator.', 'danger')
+                return render_template('auth/login.html', form=form)
             login_user(user, remember=form.remember.data)
             next_page = request.args.get('next')
             return redirect(next_page) if next_page else redirect(url_for('index'))
@@ -1126,26 +1143,92 @@ def admin_delete_property(property_id):
     
     property = Property.query.get_or_404(property_id)
     
-    # Delete associated images first
-    for image in property.images:
-        try:
-            file_path = os.path.join(app.root_path, image.imageURL.lstrip('/'))
-            if os.path.exists(file_path):
-                os.remove(file_path)
-        except Exception as e:
-            print(f"Error deleting image file: {e}")
+    try:
+        # Start a transaction
+        db.session.begin_nested()
+        
+        # 1. Delete from Favorites first (no dependencies)
+        Favorites.query.filter_by(propertyId=property_id).delete()
+        
+        # 2. Delete Listing records (no dependencies)
+        db.session.execute(text("DELETE FROM Listing WHERE propertyId = :pid"), {"pid": property_id})
+        
+        # 3. Delete from PropertyAmenities (no dependencies)
+        PropertyAmenity.query.filter_by(propertyId=property_id).delete()
+        
+        # 4. Delete associated images and their files
+        for image in property.images:
+            try:
+                file_path = os.path.join(app.root_path, image.imageURL.lstrip('/'))
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                db.session.delete(image)
+            except Exception as e:
+                print(f"Error deleting image file: {e}")
+        
+        # 5. Delete property documents
+        db.session.execute(text("DELETE FROM PropertyDocuments WHERE propertyId = :pid"), {"pid": property_id})
+        
+        # 6. Handle all Payment records first since they reference other tables
+        # Delete payment records linked to transactions of this property
+        db.session.execute(text("""
+            DELETE FROM Payment 
+            WHERE transactionId IN (
+                SELECT transactionId 
+                FROM Transaction 
+                WHERE propertyId = :pid
+            )
+        """), {"pid": property_id})
+        
+        # Delete payment records linked to rental agreements of this property
+        db.session.execute(text("""
+            DELETE FROM Payment 
+            WHERE rentalId IN (
+                SELECT agreementId 
+                FROM RentalAgreement 
+                WHERE propertyId = :pid
+            )
+        """), {"pid": property_id})
+        
+        # Delete payment records linked to property tax of this property
+        db.session.execute(text("""
+            DELETE FROM Payment 
+            WHERE taxId IN (
+                SELECT taxId 
+                FROM PropertyTax 
+                WHERE propertyId = :pid
+            )
+        """), {"pid": property_id})
+        
+        # 7. Now that all payments are handled, we can delete from the referenced tables
+        db.session.execute(text("DELETE FROM Transaction WHERE propertyId = :pid"), {"pid": property_id})
+        db.session.execute(text("DELETE FROM RentalAgreement WHERE propertyId = :pid"), {"pid": property_id})
+        db.session.execute(text("DELETE FROM PropertyTax WHERE propertyId = :pid"), {"pid": property_id})
+        
+        # 8. Delete any maintenance requests
+        db.session.execute(text("DELETE FROM Maintenance WHERE propertyId = :pid"), {"pid": property_id})
+        
+        # 9. Delete any valuations
+        db.session.execute(text("DELETE FROM Valuation WHERE propertyId = :pid"), {"pid": property_id})
+        
+        # 10. Delete any legal cases
+        db.session.execute(text("DELETE FROM LegalCase WHERE propertyId = :pid"), {"pid": property_id})
+        
+        # 11. Delete residential or commercial property details
+        db.session.execute(text("DELETE FROM ResidentialProperty WHERE propertyId = :pid"), {"pid": property_id})
+        db.session.execute(text("DELETE FROM CommercialProperty WHERE propertyId = :pid"), {"pid": property_id})
+        
+        # Finally delete the property itself
+        db.session.delete(property)
+        
+        # Commit all changes
+        db.session.commit()
+        flash('Property has been deleted successfully', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting property: {str(e)}', 'danger')
     
-    # Delete property amenities
-    PropertyAmenity.query.filter_by(propertyId=property_id).delete()
-    
-    # Delete property from favorites
-    Favorites.query.filter_by(propertyId=property_id).delete()
-    
-    # Delete the property
-    db.session.delete(property)
-    db.session.commit()
-    
-    flash('Property has been deleted successfully', 'success')
     return redirect(url_for('admin_properties'))
 
 @app.route('/admin/properties/<int:property_id>/toggle-featured', methods=['POST'])
