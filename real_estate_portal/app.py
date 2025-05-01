@@ -32,7 +32,7 @@ def init_db():
         ]
         
         for amenity_data in amenities:
-            amenity = Amenity.query.get(amenity_data['id'])
+            amenity = db.session.get(Amenity, amenity_data['id'])
             if not amenity:
                 amenity = Amenity(
                     amenityId=amenity_data['id'],
@@ -50,13 +50,13 @@ def init_db():
         ]
         
         for role_data in roles:
-            role = UserRole.query.get(role_data['id'])
+            role = db.session.get(UserRole, role_data['id'])
             if not role:
                 role = UserRole(roleId=role_data['id'], roleName=role_data['name'])
                 db.session.add(role)
         
         # Create admin user if it doesn't exist
-        admin = User.query.filter_by(username='admin').first()
+        admin = User.query.filter_by(email='admin@realestate.com').first()
         if not admin:
             admin = User(
                 username='admin',
@@ -64,7 +64,7 @@ def init_db():
                 mobile='9999999999',
                 roleId=1  # Admin role
             )
-            admin.set_password('admin123')  # Set a default password
+            admin.set_password('admin123')
             db.session.add(admin)
         
         try:
