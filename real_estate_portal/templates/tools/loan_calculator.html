@@ -46,29 +46,29 @@
                     <h3 class="card-title mb-4">Home Loan Calculator</h3>
                     
                     <!-- Loan Calculator Form -->
-                    <form id="loanForm">
+                    <form id="loanForm" method="POST">
                         <div class="row g-4">
                             <div class="col-md-6">
                                 <label class="form-label">Loan Amount (₹)</label>
-                                <input type="number" class="form-control" id="loanAmount" 
+                                <input type="number" class="form-control" id="loanAmount" name="amount"
                                        placeholder="Enter loan amount" required min="100000">
                             </div>
                             
                             <div class="col-md-6">
                                 <label class="form-label">Interest Rate (% per annum)</label>
-                                <input type="number" class="form-control" id="interestRate" 
+                                <input type="number" class="form-control" id="interestRate" name="rate"
                                        placeholder="Enter interest rate" required step="0.01" min="1" max="30">
                             </div>
 
                             <div class="col-md-6">
                                 <label class="form-label">Loan Term (years)</label>
-                                <input type="number" class="form-control" id="loanTerm" 
+                                <input type="number" class="form-control" id="loanTerm" name="tenure"
                                        placeholder="Enter loan term" required min="1" max="30">
                             </div>
 
                             <div class="col-md-6">
                                 <label class="form-label">Down Payment (₹)</label>
-                                <input type="number" class="form-control" id="downPayment" 
+                                <input type="number" class="form-control" id="downPayment" name="down_payment"
                                        placeholder="Enter down payment amount" min="0">
                             </div>
 
@@ -78,23 +78,24 @@
                         </div>
                     </form>
 
-                    <!-- Results Section (initially hidden) -->
-                    <div id="loanResults" style="display: none;">
+                    {% if emi %}
+                    <!-- Results Section -->
+                    <div id="loanResults">
                         <div class="loan-summary mt-4">
                             <div class="row">
                                 <div class="col-md-6">
                                     <h4 class="mb-3">Monthly EMI</h4>
-                                    <h2 class="mb-3">₹<span id="monthlyEMI">0</span></h2>
+                                    <h2 class="mb-3">₹{{ "%.2f"|format(emi) }}</h2>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="row">
                                         <div class="col-6">
                                             <small>Principal Amount</small>
-                                            <div>₹<span id="principalAmount">0</span></div>
+                                            <div>₹{{ "%.2f"|format(form_data.amount|float) }}</div>
                                         </div>
                                         <div class="col-6">
                                             <small>Total Interest</small>
-                                            <div>₹<span id="totalInterest">0</span></div>
+                                            <div>₹{{ "%.2f"|format(total_interest) }}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -108,19 +109,19 @@
                                 <div class="col-md-4">
                                     <div class="detail-card text-center">
                                         <h6>Total Payment</h6>
-                                        <div class="h4 mb-0">₹<span id="totalPayment">0</span></div>
+                                        <div class="h4 mb-0">₹{{ "%.2f"|format(total_payment) }}</div>
                                     </div>
                                 </div>
                                 <div class="col-md-4">
                                     <div class="detail-card text-center">
                                         <h6>Interest Component</h6>
-                                        <div class="h4 mb-0"><span id="interestPercent">0</span>%</div>
+                                        <div class="h4 mb-0">{{ "%.1f"|format(interest_percent) }}%</div>
                                     </div>
                                 </div>
                                 <div class="col-md-4">
                                     <div class="detail-card text-center">
                                         <h6>Principal Component</h6>
-                                        <div class="h4 mb-0"><span id="principalPercent">0</span>%</div>
+                                        <div class="h4 mb-0">{{ "%.1f"|format(principal_percent) }}%</div>
                                     </div>
                                 </div>
                             </div>
@@ -146,12 +147,21 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <!-- Filled dynamically -->
+                                        {% for year in amortization %}
+                                        <tr>
+                                            <td>{{ year.year }}</td>
+                                            <td>₹{{ "%.2f"|format(year.principal_paid) }}</td>
+                                            <td>₹{{ "%.2f"|format(year.interest_paid) }}</td>
+                                            <td>₹{{ "%.2f"|format(year.total_payment) }}</td>
+                                            <td>₹{{ "%.2f"|format(year.balance) }}</td>
+                                        </tr>
+                                        {% endfor %}
                                     </tbody>
                                 </table>
                             </div>
                         </div>
                     </div>
+                    {% endif %}
                 </div>
             </div>
 
@@ -175,111 +185,16 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-document.getElementById('loanForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const formData = {
-        loanAmount: parseFloat(document.getElementById('loanAmount').value),
-        interestRate: parseFloat(document.getElementById('interestRate').value),
-        loanTerm: parseInt(document.getElementById('loanTerm').value),
-        downPayment: parseFloat(document.getElementById('downPayment').value) || 0
-    };
-    
-    // Calculate EMI
-    const principal = formData.loanAmount - formData.downPayment;
-    const monthlyRate = formData.interestRate / 12 / 100;
-    const totalMonths = formData.loanTerm * 12;
-    
-    const emi = principal * monthlyRate * Math.pow(1 + monthlyRate, totalMonths) / 
-                (Math.pow(1 + monthlyRate, totalMonths) - 1);
-    
-    const totalPayment = emi * totalMonths;
-    const totalInterest = totalPayment - principal;
-    
-    // Update results
-    document.getElementById('monthlyEMI').textContent = emi.toFixed(2);
-    document.getElementById('principalAmount').textContent = principal.toLocaleString();
-    document.getElementById('totalInterest').textContent = totalInterest.toLocaleString();
-    document.getElementById('totalPayment').textContent = totalPayment.toLocaleString();
-    document.getElementById('interestPercent').textContent = ((totalInterest / totalPayment) * 100).toFixed(1);
-    document.getElementById('principalPercent').textContent = ((principal / totalPayment) * 100).toFixed(1);
-    
-    // Generate amortization schedule
-    generateAmortizationSchedule(principal, monthlyRate, totalMonths, emi);
-    
-    // Update chart
-    updateChart(principal, totalInterest);
-    
-    // Show results
-    document.getElementById('loanResults').style.display = 'block';
-    
-    // Smooth scroll to results
-    document.getElementById('loanResults').scrollIntoView({ behavior: 'smooth' });
-});
-
-function generateAmortizationSchedule(principal, monthlyRate, totalMonths, emi) {
-    let balance = principal;
-    let yearlyData = [];
-    let currentYear = {
-        principalPaid: 0,
-        interestPaid: 0,
-        totalPayment: 0
-    };
-    
-    const tbody = document.getElementById('amortizationTable').getElementsByTagName('tbody')[0];
-    tbody.innerHTML = '';
-    
-    for (let month = 1; month <= totalMonths; month++) {
-        const interestPayment = balance * monthlyRate;
-        const principalPayment = emi - interestPayment;
-        
-        currentYear.principalPaid += principalPayment;
-        currentYear.interestPaid += interestPayment;
-        currentYear.totalPayment += emi;
-        
-        balance -= principalPayment;
-        
-        if (month % 12 === 0 || month === totalMonths) {
-            yearlyData.push({
-                year: Math.ceil(month / 12),
-                principalPaid: currentYear.principalPaid,
-                interestPaid: currentYear.interestPaid,
-                totalPayment: currentYear.totalPayment,
-                balance: balance > 0 ? balance : 0
-            });
-            
-            currentYear = {
-                principalPaid: 0,
-                interestPaid: 0,
-                totalPayment: 0
-            };
-        }
-    }
-    
-    // Populate table
-    yearlyData.forEach(data => {
-        const row = tbody.insertRow();
-        row.insertCell(0).textContent = data.year;
-        row.insertCell(1).textContent = '₹' + data.principalPaid.toLocaleString(undefined, {maximumFractionDigits: 0});
-        row.insertCell(2).textContent = '₹' + data.interestPaid.toLocaleString(undefined, {maximumFractionDigits: 0});
-        row.insertCell(3).textContent = '₹' + data.totalPayment.toLocaleString(undefined, {maximumFractionDigits: 0});
-        row.insertCell(4).textContent = '₹' + data.balance.toLocaleString(undefined, {maximumFractionDigits: 0});
-    });
-}
-
-function updateChart(principal, totalInterest) {
+document.addEventListener('DOMContentLoaded', function() {
+    {% if emi is defined and emi %}
+    // Create chart for loan breakup
     const ctx = document.getElementById('loanChart').getContext('2d');
-    
-    if (window.loanChart) {
-        window.loanChart.destroy();
-    }
-    
-    window.loanChart = new Chart(ctx, {
+    new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: ['Principal', 'Interest'],
             datasets: [{
-                data: [principal, totalInterest],
+                data: [{{ form_data.amount|float }}, {{ total_interest|float }}],
                 backgroundColor: [
                     'rgba(54, 162, 235, 0.8)',
                     'rgba(255, 99, 132, 0.8)'
@@ -296,6 +211,7 @@ function updateChart(principal, totalInterest) {
             }
         }
     });
-}
+    {% endif %}
+});
 </script>
 {% endblock %}
