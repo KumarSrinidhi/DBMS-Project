@@ -265,6 +265,14 @@ def properties():
 @app.route('/property/<int:property_id>')
 def property_detail(property_id):
     property = Property.query.get_or_404(property_id)
+    
+    # Check if property is active or if the current user is admin or the property owner
+    if not property.isActive:
+        # Allow access if user is admin or the property owner
+        if not current_user.is_authenticated or (current_user.roleId != 1 and property.ownerId != current_user.userId):
+            flash('This property is not currently active', 'warning')
+            return redirect(url_for('properties'))
+
     amenities = property.amenities if hasattr(property, 'amenities') else []
     return render_template('properties/detail.html', 
                          property=property,
@@ -418,31 +426,22 @@ def admin_edit_property(property_id):
     
     if request.method == 'POST':
         try:
-            property.address = request.form['address']
-            property.price = float(request.form['price'])
-            property.carpetArea = float(request.form['carpetArea'])
-            property.furnishingType = request.form['furnishingType']
-            property.propertyAge = int(request.form['propertyAge'])
-            property.ownershipType = request.form['ownershipType']
-            property.listingType = request.form['listingType']
+            # Check if this is an activation/deactivation request
+            if 'isActive' in request.form:
+                is_active_value = request.form['isActive']
+                property.isActive = is_active_value.lower() == 'true'
+                db.session.commit()
+                
+                status = "activated" if property.isActive else "deactivated"
+                flash(f'Property has been {status} successfully', 'success')
+                return redirect(url_for('admin_properties'))
+            
+            # Otherwise, process the full form data
+            if 'price' in request.form:
+                property.price = float(request.form['price'])
+            
             property.isActive = 'isActive' in request.form
             property.reraRegistered = 'reraRegistered' in request.form
-            
-            # Update location if changed
-            if 'locationId' in request.form:
-                property.locationId = int(request.form['locationId'])
-            
-            # Update property type if changed
-            if 'typeId' in request.form:
-                property.typeId = int(request.form['typeId'])
-            
-            # Update amenities
-            PropertyAmenity.query.filter_by(propertyId=property_id).delete()
-            if 'amenities' in request.form:
-                amenities = request.form.getlist('amenities')
-                for amenity_id in amenities:
-                    prop_amenity = PropertyAmenity(propertyId=property_id, amenityId=int(amenity_id))
-                    db.session.add(prop_amenity)
             
             db.session.commit()
             flash('Property updated successfully', 'success')

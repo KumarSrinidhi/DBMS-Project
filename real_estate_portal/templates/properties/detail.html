@@ -15,9 +15,12 @@
                 <small class="text-muted">{{ property.property_type.typeName }} in {{ property.location.city }}</small>
             </div>
             <div class="col-md-6 text-end">
-                <button class="btn btn-outline-primary me-2" onclick="toggleFavorite()">
+                <button class="btn btn-outline-primary me-2 favorite-btn" onclick="toggleFavorite()">
                     <i class="bi bi-heart"></i> Save
                 </button>
+                <a href="{{ url_for('compare_properties', add=property.propertyId) }}" class="btn btn-outline-info me-2">
+                    <i class="bi bi-bar-chart"></i> Compare
+                </a>
                 <a href="#contact-form" class="btn btn-primary">Contact Owner</a>
             </div>
         </div>
@@ -216,6 +219,57 @@
                     <div id="map" style="height: 300px;"></div>
                 </div>
             </div>
+
+            <!-- Nearby Amenities -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Nearby Amenities</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="bi bi-building me-2 text-primary"></i>
+                                <div>
+                                    <strong>Education</strong>
+                                    <p class="text-muted small mb-0">DPS School (1.2 km)</p>
+                                    <p class="text-muted small mb-0">St. Mary's College (2.5 km)</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="bi bi-hospital me-2 text-danger"></i>
+                                <div>
+                                    <strong>Healthcare</strong>
+                                    <p class="text-muted small mb-0">City Hospital (0.8 km)</p>
+                                    <p class="text-muted small mb-0">Apollo Clinic (1.5 km)</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="bi bi-cart3 me-2 text-success"></i>
+                                <div>
+                                    <strong>Shopping</strong>
+                                    <p class="text-muted small mb-0">City Center Mall (1.0 km)</p>
+                                    <p class="text-muted small mb-0">Local Market (0.3 km)</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="bi bi-train-front me-2 text-info"></i>
+                                <div>
+                                    <strong>Transportation</strong>
+                                    <p class="text-muted small mb-0">Metro Station (0.6 km)</p>
+                                    <p class="text-muted small mb-0">Bus Stop (0.2 km)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
         
         <div class="col-md-4">
@@ -298,9 +352,132 @@
                 </div>
             </div>
             {% endif %}
+
+            <!-- Financial Tools -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-calculator me-2"></i>Financial Calculator</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Loan Amount</label>
+                        <input type="range" class="form-range" id="loanAmountSlider" min="0" max="{{ property.price|float }}" step="10000" value="{{ (property.price|float * 0.8)|int }}">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">₹0</span>
+                            <span id="loanAmountValue" class="fw-bold text-primary">₹{{ "{:,.0f}".format(property.price|float * 0.8) }}</span>
+                            <span class="text-muted">₹{{ "{:,.0f}".format(property.price) }}</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Interest Rate (%)</label>
+                        <input type="range" class="form-range" id="interestRateSlider" min="5" max="15" step="0.1" value="8.5">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">5%</span>
+                            <span id="interestRateValue" class="fw-bold text-primary">8.5%</span>
+                            <span class="text-muted">15%</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Loan Term (Years)</label>
+                        <input type="range" class="form-range" id="loanTermSlider" min="5" max="30" step="1" value="20">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">5 years</span>
+                            <span id="loanTermValue" class="fw-bold text-primary">20 years</span>
+                            <span class="text-muted">30 years</span>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>Monthly EMI:</span>
+                            <span id="emiValue" class="h5 text-primary mb-0">₹67,400</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <span>Down Payment:</span>
+                            <span id="downPaymentValue" class="text-muted">₹{{ "{:,.0f}".format(property.price|float * 0.2) }}</span>
+                        </div>
+                    </div>
+                    <div class="d-grid">
+                        <a href="{{ url_for('loan_calculator') }}" class="btn btn-outline-primary">Full Loan Calculator</a>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- Similar Properties Section -->
+<section class="container my-5">
+    <h2 class="mb-4">Similar Properties</h2>
+    <div class="row g-4">
+        <!-- Similar Property Card 1 -->
+        <div class="col-md-4">
+            <div class="card h-100 property-card">
+                <div class="position-relative">
+                    <img src="{{ url_for('static', filename='images/properties/5002/1.jpg') }}" class="card-img-top" 
+                         style="height: 220px; object-fit: cover;" alt="Similar Property">
+                    <span class="position-absolute top-0 end-0 m-2 badge bg-primary">{{ property.listingType }}</span>
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title mb-1">{{ property.property_type.typeName }} in {{ property.location.city }}</h5>
+                    <p class="text-primary h5 mb-2">₹{{ "{:,.0f}".format(property.price - 500000) }}</p>
+                    <p class="text-muted mb-2"><i class="bi bi-geo-alt"></i> {{ property.location.city }}</p>
+                    <div class="d-flex justify-content-between small text-muted mb-3">
+                        <span><i class="bi bi-arrows-angle-expand me-1"></i>{{ property.carpetArea - 50 }} sq.ft</span>
+                        <span><i class="bi bi-house-door me-1"></i>{{ property.furnishingType }}</span>
+                    </div>
+                    <a href="{{ url_for('property_detail', property_id=property.propertyId-1 if property.propertyId > 5001 else property.propertyId+1) }}" 
+                       class="btn btn-outline-primary w-100">View Details</a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Similar Property Card 2 -->
+        <div class="col-md-4">
+            <div class="card h-100 property-card">
+                <div class="position-relative">
+                    <img src="{{ url_for('static', filename='images/properties/5003/1.jpg') }}" class="card-img-top" 
+                         style="height: 220px; object-fit: cover;" alt="Similar Property">
+                    <span class="position-absolute top-0 end-0 m-2 badge bg-primary">{{ property.listingType }}</span>
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title mb-1">{{ property.property_type.typeName }} in {{ property.location.city }}</h5>
+                    <p class="text-primary h5 mb-2">₹{{ "{:,.0f}".format(property.price + 800000) }}</p>
+                    <p class="text-muted mb-2"><i class="bi bi-geo-alt"></i> {{ property.location.city }}</p>
+                    <div class="d-flex justify-content-between small text-muted mb-3">
+                        <span><i class="bi bi-arrows-angle-expand me-1"></i>{{ property.carpetArea + 75 }} sq.ft</span>
+                        <span><i class="bi bi-house-door me-1"></i>{{ property.furnishingType }}</span>
+                    </div>
+                    <a href="{{ url_for('property_detail', property_id=property.propertyId-2 if property.propertyId > 5002 else property.propertyId+2) }}" 
+                       class="btn btn-outline-primary w-100">View Details</a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Similar Property Card 3 -->
+        <div class="col-md-4">
+            <div class="card h-100 property-card">
+                <div class="position-relative">
+                    <img src="{{ url_for('static', filename='images/properties/5004/1.jpg') }}" class="card-img-top" 
+                         style="height: 220px; object-fit: cover;" alt="Similar Property">
+                    <span class="position-absolute top-0 end-0 m-2 badge bg-primary">{{ property.listingType }}</span>
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title mb-1">{{ property.property_type.typeName }} in {{ property.location.city }}</h5>
+                    <p class="text-primary h5 mb-2">₹{{ "{:,.0f}".format(property.price - 200000) }}</p>
+                    <p class="text-muted mb-2"><i class="bi bi-geo-alt"></i> {{ property.location.city }}</p>
+                    <div class="d-flex justify-content-between small text-muted mb-3">
+                        <span><i class="bi bi-arrows-angle-expand me-1"></i>{{ property.carpetArea - 25 }} sq.ft</span>
+                        <span><i class="bi bi-house-door me-1"></i>{{ property.furnishingType }}</span>
+                    </div>
+                    <a href="{{ url_for('property_detail', property_id=property.propertyId-3 if property.propertyId > 5003 else property.propertyId+3) }}" 
+                       class="btn btn-outline-primary w-100">View Details</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
 {% endblock %}
 
 {% block scripts %}
@@ -357,5 +534,52 @@
             }
         });
     }
+    
+    // EMI Calculator
+    const loanAmountSlider = document.getElementById('loanAmountSlider');
+    const interestRateSlider = document.getElementById('interestRateSlider');
+    const loanTermSlider = document.getElementById('loanTermSlider');
+    const loanAmountValue = document.getElementById('loanAmountValue');
+    const interestRateValue = document.getElementById('interestRateValue');
+    const loanTermValue = document.getElementById('loanTermValue');
+    const emiValue = document.getElementById('emiValue');
+    const downPaymentValue = document.getElementById('downPaymentValue');
+    
+    function calculateEMI() {
+        const propertyPrice = {{ property.price|float }};
+        const loanAmount = parseFloat(loanAmountSlider.value);
+        const interestRate = parseFloat(interestRateSlider.value);
+        const loanTerm = parseFloat(loanTermSlider.value);
+        
+        // Calculate down payment
+        const downPayment = propertyPrice - loanAmount;
+        downPaymentValue.textContent = '₹' + downPayment.toLocaleString('en-IN');
+        
+        // Calculate EMI
+        const monthlyInterest = interestRate / 1200;
+        const months = loanTerm * 12;
+        const emi = loanAmount * monthlyInterest * Math.pow(1 + monthlyInterest, months) / (Math.pow(1 + monthlyInterest, months) - 1);
+        
+        emiValue.textContent = '₹' + emi.toLocaleString('en-IN', {maximumFractionDigits: 0});
+    }
+    
+    // Add event listeners to sliders
+    loanAmountSlider.addEventListener('input', function() {
+        loanAmountValue.textContent = '₹' + parseFloat(this.value).toLocaleString('en-IN');
+        calculateEMI();
+    });
+    
+    interestRateSlider.addEventListener('input', function() {
+        interestRateValue.textContent = this.value + '%';
+        calculateEMI();
+    });
+    
+    loanTermSlider.addEventListener('input', function() {
+        loanTermValue.textContent = this.value + ' years';
+        calculateEMI();
+    });
+    
+    // Initialize EMI calculation
+    calculateEMI();
 </script>
 {% endblock %}

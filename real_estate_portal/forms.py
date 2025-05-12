@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SubmitField, TextAreaField, DecimalField, IntegerField, SelectField, SelectMultipleField, FloatField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError, Optional
-from models import User, PropertyType, IndianLocation
+from models import User, PropertyType, IndianLocation, Amenity
 
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
@@ -104,23 +104,7 @@ class PropertyForm(FlaskForm):
         ('Agricultural', 'Agricultural')
     ])
     
-    amenities = SelectMultipleField('Amenities', choices=[
-        ('Swimming Pool', 'Swimming Pool'),
-        ('Gym', 'Gym'),
-        ('Garden', 'Garden'),
-        ('Parking', 'Parking'),
-        ('Security', 'Security'),
-        ('Playground', 'Playground'),
-        ('Club House', 'Club House'),
-        ('Indoor Games', 'Indoor Games'),
-        ('Gas Pipeline', 'Gas Pipeline'),
-        ('Rain Water Harvesting', 'Rain Water Harvesting'),
-        ('Solar Panels', 'Solar Panels'),
-        ('Service Lift', 'Service Lift'),
-        ('Fire Safety', 'Fire Safety'),
-        ('Senior Citizen Area', 'Senior Citizen Area'),
-        ('Car Charging', 'EV Car Charging')
-    ])
+    amenities = SelectMultipleField('Amenities', coerce=int)
     
     rera_registered = BooleanField('RERA Registered')
     featured = BooleanField('Featured Property')
@@ -130,6 +114,7 @@ class PropertyForm(FlaskForm):
         super(PropertyForm, self).__init__(*args, **kwargs)
         self.property_type.choices = [(t.typeId, t.typeName) for t in PropertyType.query.all()]
         self.location.choices = [(l.locationId, f"{l.city}, {l.state}") for l in IndianLocation.query.all()]
+        self.amenities.choices = [(a.amenityId, a.name) for a in Amenity.query.all()]
 
 class PropertySearchForm(FlaskForm):
     location = StringField('Location')
