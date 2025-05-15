@@ -3,24 +3,399 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real Estate Portal - {% block title %}{% endblock %}</title>
+    <title>DreamHome - {% block title %}{% endblock %}</title>
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <!-- AOS Animation Library -->
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #e67e22;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --success: #27ae60;
+            --info: #3498db;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --border-radius: 10px;
+            --box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            color: var(--dark);
+            background-color: #f5f7fa;
+            overflow-x: hidden;
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Playfair Display', serif;
+            font-weight: 600;
+        }
+        
+        /* Loading Spinner */
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.98);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        
+        #loading-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(44, 62, 80, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--accent);
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Navbar */
+        .navbar {
+            padding: 15px 0;
+            background-color: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+            transition: var(--transition);
+        }
+        
+        .navbar.scrolled {
+            padding: 10px 0;
+        }
+        
+        .navbar-brand {
+            font-family: 'Playfair Display', serif;
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: var(--primary);
+        }
+        
+        .navbar-brand i {
+            color: var(--accent);
+        }
+        
+        .nav-link {
+            font-weight: 500;
+            color: var(--secondary);
+            margin: 0 5px;
+            position: relative;
+            transition: var(--transition);
+        }
+        
+        .nav-link:hover, .nav-link:focus {
+            color: var(--accent);
+        }
+        
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: 0;
+            left: 0;
+            background-color: var(--accent);
+            transition: var(--transition);
+        }
+        
+        .nav-link:hover::after {
+            width: 100%;
+        }
+        
+        .dropdown-menu {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 10px;
+        }
+        
+        .dropdown-item {
+            padding: 8px 15px;
+            border-radius: 5px;
+            transition: var(--transition);
+        }
+        
+        .dropdown-item:hover {
+            background-color: rgba(230, 126, 34, 0.1);
+            color: var(--accent);
+        }
+        
+        /* Main Content */
+        main {
+            min-height: calc(100vh - 300px);
+        }
+        
+        .alert {
+            border-radius: var(--border-radius);
+            border: none;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        /* Cards */
+        .card {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            transition: var(--transition);
+            overflow: hidden;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+        }
+        
+        .card-header {
+            background-color: var(--primary);
+            color: white;
+            border-bottom: none;
+            padding: 15px 20px;
+        }
+        
+        .card-body {
+            padding: 25px;
+        }
+        
+        .card-footer {
+            background-color: rgba(0, 0, 0, 0.02);
+            border-top: none;
+            padding: 15px 25px;
+        }
+        
+        /* Buttons */
+        .btn {
+            border-radius: 50px;
+            padding: 10px 25px;
+            font-weight: 500;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.1);
+            transition: var(--transition);
+            z-index: -1;
+        }
+        
+        .btn:hover::before {
+            width: 100%;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary);
+            border-color: var(--primary);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 5px 15px rgba(44, 62, 80, 0.3);
+        }
+        
+        .btn-accent {
+            background-color: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+        
+        .btn-accent:hover {
+            background-color: var(--accent);
+            border-color: var(--accent);
+            color: white;
+            box-shadow: 0 5px 15px rgba(230, 126, 34, 0.3);
+        }
+        
+        .btn-outline-primary {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        
+        .btn-outline-primary:hover {
+            background-color: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+        
+        /* Forms */
+        .form-control, .form-select {
+            border-radius: var(--border-radius);
+            padding: 12px 15px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            transition: var(--transition);
+        }
+        
+        .form-control:focus, .form-select:focus {
+            box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.1);
+            border-color: var(--primary);
+        }
+        
+        .form-label {
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        /* Footer */
+        footer {
+            background-color: var(--primary);
+            color: white;
+            padding: 60px 0 30px;
+            position: relative;
+        }
+        
+        footer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 10px;
+            background: linear-gradient(90deg, var(--accent), var(--info), var(--success));
+        }
+        
+        footer h5 {
+            font-weight: 600;
+            margin-bottom: 20px;
+            position: relative;
+            display: inline-block;
+        }
+        
+        footer h5::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            width: 40px;
+            height: 3px;
+            background-color: var(--accent);
+        }
+        
+        footer a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            transition: var(--transition);
+        }
+        
+        footer a:hover {
+            color: var(--accent);
+            text-decoration: none;
+        }
+        
+        .social-links a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            margin-right: 10px;
+            transition: var(--transition);
+        }
+        
+        .social-links a:hover {
+            background-color: var(--accent);
+            transform: translateY(-3px);
+        }
+        
+        .newsletter-form .form-control {
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .newsletter-form .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .newsletter-form .btn {
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+            background-color: var(--accent);
+            border-color: var(--accent);
+        }
+        
+        /* Notification Modal */
+        .notification-item {
+            transition: var(--transition);
+            border-radius: var(--border-radius);
+        }
+        
+        .notification-item:hover {
+            background-color: rgba(0, 0, 0, 0.03);
+        }
+        
+        /* Animations */
+        .fade-in {
+            animation: fadeIn 1s ease forwards;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Responsive */
+        @media (max-width: 991.98px) {
+            .navbar-collapse {
+                background-color: white;
+                padding: 20px;
+                border-radius: var(--border-radius);
+                box-shadow: var(--box-shadow);
+                margin-top: 15px;
+            }
+        }
+        
+        @media (max-width: 767.98px) {
+            footer {
+                text-align: center;
+            }
+            
+            footer h5::after {
+                left: 50%;
+                transform: translateX(-50%);
+            }
+        }
+    </style>
     {% block styles %}{% endblock %}
 </head>
 <body>
     <!-- Loading Spinner -->
-    <div id="loading-overlay" class="position-fixed w-100 h-100 d-flex justify-content-center align-items-center bg-white" style="z-index: 9999;">
+    <div id="loading-overlay">
         <div class="loading-spinner"></div>
     </div>
 
@@ -28,7 +403,7 @@
     <nav class="navbar navbar-expand-lg fixed-top">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center" href="{{ url_for('index') }}">
-                <i class="bi bi-house-heart-fill me-1"></i>DreamHome
+                <i class="bi bi-house-heart-fill me-2"></i>DreamHome
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -47,7 +422,7 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('map_search') }}">
-                            <i class="bi bi-map"></i> Map Search
+                            <i class="bi bi-map me-1"></i>Map Search
                         </a>
                     </li>
                     {% if current_user.is_authenticated and current_user.roleId == 4 %}
@@ -59,12 +434,12 @@
                     {% endif %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            Tools
+                            <i class="bi bi-tools me-1"></i>Tools
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('loan_calculator') }}">Loan Calculator</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('property_valuation') }}">Property Valuation</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('compare_properties') }}">Compare Properties</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('loan_calculator') }}"><i class="bi bi-calculator me-2"></i>Loan Calculator</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('property_valuation') }}"><i class="bi bi-graph-up-arrow me-2"></i>Property Valuation</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('compare_properties') }}"><i class="bi bi-bar-chart me-2"></i>Compare Properties</a></li>
                         </ul>
                     </li>
                 </ul>
@@ -81,7 +456,7 @@
                     </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
-                            <img src="https://ui-avatars.com/api/?name={{ current_user.username }}&background=random" 
+                            <img src="https://ui-avatars.com/api/?name={{ current_user.username }}&background=e67e22&color=fff" 
                                  class="rounded-circle me-2" 
                                  alt="Profile" 
                                  width="32" 
@@ -139,7 +514,7 @@
     </nav>
 
     <!-- Main Content -->
-    <main class="pt-5 mt-4">
+    <main class="pt-5 mt-5">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -156,13 +531,13 @@
     </main>
 
     <!-- Footer -->
-    <footer class="mt-5">
+    <footer>
         <div class="container">
             <div class="row">
                 <div class="col-md-4 mb-4">
-                    <h5 class="mb-4">About DreamHome</h5>
+                    <h5>About DreamHome</h5>
                     <p>Your trusted partner in finding the perfect property. We make real estate simple, efficient, and transparent.</p>
-                    <div class="social-links">
+                    <div class="social-links mt-4">
                         <a href="#"><i class="bi bi-facebook"></i></a>
                         <a href="#"><i class="bi bi-twitter"></i></a>
                         <a href="#"><i class="bi bi-instagram"></i></a>
@@ -170,53 +545,82 @@
                     </div>
                 </div>
                 <div class="col-md-4 mb-4">
-                    <h5 class="mb-4">Quick Links</h5>
+                    <h5>Quick Links</h5>
                     <ul class="list-unstyled">
-                        <li><a href="{{ url_for('about') }}" class="text-white">About Us</a></li>
-                        <li><a href="{{ url_for('contact') }}" class="text-white">Contact Us</a></li>
-                        <li><a href="{{ url_for('terms') }}" class="text-white">Terms & Conditions</a></li>
-                        <li><a href="{{ url_for('privacy') }}" class="text-white">Privacy Policy</a></li>
+                        <li class="mb-2"><a href="{{ url_for('about') }}"><i class="bi bi-chevron-right me-1"></i>About Us</a></li>
+                        <li class="mb-2"><a href="{{ url_for('contact') }}"><i class="bi bi-chevron-right me-1"></i>Contact Us</a></li>
+                        <li class="mb-2"><a href="{{ url_for('terms') }}"><i class="bi bi-chevron-right me-1"></i>Terms & Conditions</a></li>
+                        <li class="mb-2"><a href="{{ url_for('privacy') }}"><i class="bi bi-chevron-right me-1"></i>Privacy Policy</a></li>
                     </ul>
                 </div>
                 <div class="col-md-4 mb-4">
-                    <h5 class="mb-4">Newsletter</h5>
+                    <h5>Newsletter</h5>
                     <p>Subscribe to our newsletter for the latest updates and offers.</p>
-                    <form class="newsletter-form">
+                    <form class="newsletter-form mt-3">
                         <div class="input-group">
                             <input type="email" class="form-control" placeholder="Your email">
-                            <button class="btn btn-light" type="submit">Subscribe</button>
+                            <button class="btn" type="submit">Subscribe</button>
                         </div>
                     </form>
                 </div>
             </div>
-            <hr class="mt-4 mb-4 border-light">
-            <p class="text-center mb-0">&copy; 2024 DreamHome Real Estate Portal. All rights reserved.</p>
+            <hr class="mt-4 mb-4 border-light opacity-10">
+            <div class="row align-items-center">
+                <div class="col-md-6 text-center text-md-start">
+                    <p class="mb-0">&copy; 2024 DreamHome Real Estate Portal. All rights reserved.</p>
+                </div>
+                <div class="col-md-6 text-center text-md-end mt-3 mt-md-0">
+                    <img src="https://via.placeholder.com/200x30?text=Payment+Methods" alt="Payment Methods" class="img-fluid" style="max-width: 200px;">
+                </div>
+            </div>
         </div>
     </footer>
 
     <!-- Notification Modal -->
     <div class="modal fade" id="notificationModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Notifications</h5>
+                    <h5 class="modal-title"><i class="bi bi-bell me-2 text-accent"></i>Notifications</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body p-0">
                     <div class="notification-item p-3 border-bottom">
-                        <h6 class="mb-1">New Property Added</h6>
-                        <p class="mb-1 small">A new property matching your search criteria is available.</p>
-                        <small class="text-muted">2 hours ago</small>
+                        <div class="d-flex">
+                            <div class="flex-shrink-0">
+                                <i class="bi bi-house-add fs-4 text-success"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-1">New Property Added</h6>
+                                <p class="mb-1 small">A new property matching your search criteria is available.</p>
+                                <small class="text-muted">2 hours ago</small>
+                            </div>
+                        </div>
                     </div>
                     <div class="notification-item p-3">
-                        <h6 class="mb-1">Price Updated</h6>
-                        <p class="mb-1 small">A property in your favorites list has updated its price.</p>
-                        <small class="text-muted">1 day ago</small>
+                        <div class="d-flex">
+                            <div class="flex-shrink-0">
+                                <i class="bi bi-tag fs-4 text-primary"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-1">Price Updated</h6>
+                                <p class="mb-1 small">A property in your favorites list has updated its price.</p>
+                                <small class="text-muted">1 day ago</small>
+                            </div>
+                        </div>
                     </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="#" class="btn btn-sm btn-outline-primary">View All Notifications</a>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Back to Top Button -->
+    <a href="#" id="back-to-top" class="btn btn-accent btn-sm position-fixed bottom-0 end-0 m-4" style="z-index: 999; display: none;">
+        <i class="bi bi-arrow-up"></i>
+    </a>
 
     <!-- Scripts -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -227,7 +631,11 @@
     <!-- Custom Scripts -->
     <script>
         // Initialize AOS animations
-        AOS.init();
+        AOS.init({
+            duration: 800,
+            easing: 'ease-in-out',
+            once: true
+        });
 
         // Handle loading screen
         const loadingOverlay = document.getElementById('loading-overlay');
@@ -237,10 +645,10 @@
             loadingOverlay.classList.add('hidden');
             setTimeout(() => {
                 loadingOverlay.style.display = 'none';
-            }, 300); // Match the CSS transition duration
+            }, 300);
         });
 
-        // Fallback: Hide loading screen if it's still visible after 5 seconds
+        // Fallback: Hide loading screen if it's still visible after 3 seconds
         setTimeout(() => {
             if (loadingOverlay && !loadingOverlay.classList.contains('hidden')) {
                 loadingOverlay.classList.add('hidden');
@@ -248,7 +656,17 @@
                     loadingOverlay.style.display = 'none';
                 }, 300);
             }
-        }, 5000);
+        }, 3000);
+
+        // Navbar scroll effect
+        window.addEventListener('scroll', function() {
+            const navbar = document.querySelector('.navbar');
+            if (window.scrollY > 50) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        });
 
         // Notification modal
         document.getElementById('notificationsBtn')?.addEventListener('click', function(e) {
@@ -259,6 +677,8 @@
         // Smooth scroll
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
+                if (this.getAttribute('href') === '#') return;
+                
                 e.preventDefault();
                 document.querySelector(this.getAttribute('href'))?.scrollIntoView({
                     behavior: 'smooth'
@@ -266,9 +686,43 @@
             });
         });
 
+        // Back to top button
+        const backToTopButton = document.getElementById('back-to-top');
+        
+        window.addEventListener('scroll', function() {
+            if (window.scrollY > 300) {
+                backToTopButton.style.display = 'block';
+            } else {
+                backToTopButton.style.display = 'none';
+            }
+        });
+        
+        backToTopButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+
         // Enable tooltips
         const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
         const tooltipList = [...tooltipTriggerList].map(el => new bootstrap.Tooltip(el));
+        
+        // Add animation to elements when they come into view
+        const animateElements = document.querySelectorAll('.animate-on-scroll');
+        
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('fade-in');
+                }
+            });
+        }, { threshold: 0.1 });
+        
+        animateElements.forEach(element => {
+            observer.observe(element);
+        });
     </script>
 
     {% block scripts %}{% endblock %}
