@@ -4,6 +4,23 @@ from flask_login import UserMixin
 
 db = SQLAlchemy()
 
+# Role constants for better maintainability
+class Roles:
+    ADMIN = 1
+    AGENT = 2
+    BUYER = 3
+    SELLER = 4
+    
+    @classmethod
+    def get_name(cls, role_id):
+        names = {
+            cls.ADMIN: 'Admin',
+            cls.AGENT: 'Agent',
+            cls.BUYER: 'Buyer',
+            cls.SELLER: 'Seller'
+        }
+        return names.get(role_id, 'Unknown')
+
 class UserRole(db.Model):
     __tablename__ = 'UserRole'
     roleId = db.Column(db.Integer, primary_key=True)
@@ -62,7 +79,7 @@ class Amenity(db.Model):
 
 class Property(db.Model):
     __tablename__ = 'Property'
-    propertyId = db.Column(db.Integer, primary_key=True)
+    propertyId = db.Column(db.Integer, primary_key=True, autoincrement=True)
     address = db.Column(db.Text, nullable=False)
     ownerId = db.Column(db.Integer, db.ForeignKey('Users.userId'), nullable=False)
     price = db.Column(db.Numeric(12, 2), nullable=False)
@@ -87,10 +104,18 @@ class Property(db.Model):
     overlooking = db.Column(db.String(100), nullable=True)
     powerBackup = db.Column(db.Enum('None', 'Partial', 'Full'), default='None')
     description = db.Column(db.Text, nullable=True)
+    isFeatured = db.Column(db.Boolean, default=False)
     
     owner = db.relationship('User', backref='properties')
     property_type = db.relationship('PropertyType', backref='properties')
     location = db.relationship('IndianLocation', backref='properties')
+    
+    # Define a more explicit relationship with back_populates instead of backrefs
+    images = db.relationship('PropertyImages', 
+                           back_populates='property_rel',
+                           lazy='select',
+                           cascade='all, delete-orphan',
+                           order_by='PropertyImages.imageId')
     
     # Add relationship to amenities
     amenities = db.relationship('PropertyAmenity', backref='property', lazy='dynamic')
@@ -123,7 +148,8 @@ class PropertyImages(db.Model):
     imageURL = db.Column(db.String(255), nullable=False)
     isPrimary = db.Column(db.Boolean, default=False)
     
-    property = db.relationship('Property', backref='images')
+    # Use back_populates for the relationship
+    property_rel = db.relationship('Property', back_populates='images')
 
 class UserDocument(db.Model):
     __tablename__ = 'UserDocuments'

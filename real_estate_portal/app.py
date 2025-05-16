@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, abort
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from models import db, User, Property, PropertyType, IndianLocation, PropertyImages, Amenity, PropertyAmenity, UserRole, UserDocument
+from models import db, User, Property, PropertyType, IndianLocation, PropertyImages, Amenity, PropertyAmenity, UserRole, UserDocument, Roles
 from config import Config
 from forms import LoginForm, RegistrationForm, PropertyForm
 import os
@@ -43,10 +43,10 @@ def init_db():
         
         # Initialize roles if they don't exist
         roles = [
-            {'id': 1, 'name': 'Admin'},
-            {'id': 2, 'name': 'Agent'},
-            {'id': 3, 'name': 'Buyer'},
-            {'id': 4, 'name': 'Seller'}
+            {'id': Roles.ADMIN, 'name': 'Admin'},
+            {'id': Roles.AGENT, 'name': 'Agent'},
+            {'id': Roles.BUYER, 'name': 'Buyer'},
+            {'id': Roles.SELLER, 'name': 'Seller'}
         ]
         
         for role_data in roles:
@@ -62,7 +62,7 @@ def init_db():
                 username='admin',
                 email='admin@realestate.com',
                 mobile='9999999999',
-                roleId=1  # Admin role
+                roleId=Roles.ADMIN  # Admin role
             )
             admin.set_password('admin123')
             db.session.add(admin)
@@ -131,7 +131,7 @@ def register():
             username=form.username.data,
             email=form.email.data,
             mobile=form.mobile.data,
-            roleId=3  # Default role as buyer
+            roleId=Roles.BUYER  # Default role as buyer
         )
         user.set_password(form.password.data)
         db.session.add(user)
@@ -148,40 +148,49 @@ def allowed_file(filename):
 @login_required
 def upload_image(property_id):
     property = Property.query.get_or_404(property_id)
-    if property.ownerId != current_user.userId:
+    if property.ownerId != current_user.userId and current_user.roleId != Roles.ADMIN:  # Allow owners and admins
         abort(403)
     
     if 'file' not in request.files:
-        flash('No file selected')
-        return redirect(url_for('property_detail', property_id=property_id))
+        return jsonify({'error': 'No file selected'}), 400
     
     file = request.files['file']
     if file.filename == '':
-        flash('No selected file')
-        return redirect(url_for('property_detail', property_id=property_id))
+        return jsonify({'error': 'No selected file'}), 400
     
     if file and allowed_file(file.filename):
-        # Create property folder if it doesn't exist
-        property_folder = os.path.join('static', 'images', 'properties', str(property_id))
-        os.makedirs(property_folder, exist_ok=True)
-        
-        # Save file with secure filename
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(property_folder, filename)
-        file.save(file_path)
-        
-        # Store correct path in database
-        image_url = f'/static/images/properties/{property_id}/{filename}'
-        image = PropertyImages(
-            propertyId=property_id,
-            imageURL=image_url,
-            isPrimary=len(property.images) == 0  # Make first image primary
-        )
-        db.session.add(image)
-        db.session.commit()
-        flash('Image uploaded successfully')
+        try:
+            # Create property folder if it doesn't exist
+            property_folder = os.path.join('static', 'images', 'properties', str(property_id))
+            os.makedirs(property_folder, exist_ok=True)
+            
+            # Save file with secure filename
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(property_folder, filename)
+            file.save(file_path)
+            
+            # Store correct path in database
+            image_url = f'/static/images/properties/{property_id}/{filename}'
+            image = PropertyImages(
+                propertyId=property_id,
+                imageURL=image_url,
+                isPrimary=len(property.images) == 0  # Make first image primary
+            )
+            db.session.add(image)
+            db.session.commit()
+            
+            # Return success response with imageUrl for client-side handling
+            return jsonify({
+                'success': True,
+                'imageUrl': image_url,
+                'imageId': image.imageId
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 500
     
-    return redirect(url_for('property_detail', property_id=property_id))
+    return jsonify({'error': 'Invalid file type'}), 400
 
 @app.route('/logout')
 @login_required
@@ -264,19 +273,70 @@ def properties():
 
 @app.route('/property/<int:property_id>')
 def property_detail(property_id):
-    property = Property.query.get_or_404(property_id)
-    
-    # Check if property is active or if the current user is admin or the property owner
-    if not property.isActive:
-        # Allow access if user is admin or the property owner
-        if not current_user.is_authenticated or (current_user.roleId != 1 and property.ownerId != current_user.userId):
-            flash('This property is not currently active', 'warning')
-            return redirect(url_for('properties'))
+    try:
+        # Load property with eager loading of images
+        property = Property.query.options(
+            db.joinedload(Property.images)
+        ).get_or_404(property_id)
+        
+        # Debug output to see what image paths are stored in the database
+        print(f"\n-------- DEBUGGING PROPERTY {property_id} IMAGES ---------")
+        if hasattr(property, 'images'):
+            print(f"Property {property_id} has {len(property.images)} images:")
+            for img in property.images:
+                print(f"Image ID: {img.imageId}, URL in DB: {img.imageURL}")
+                # Construct the filesystem path to check if image file exists
+                if img.imageURL.startswith('/static/'):
+                    fs_path = os.path.join(app.root_path, img.imageURL[1:])  # Remove leading slash
+                else:
+                    fs_path = os.path.join(app.root_path, 'static', img.imageURL)
+                print(f"Looking for file at: {fs_path}")
+                print(f"File exists: {os.path.exists(fs_path)}")
+        else:
+            print("Property has no images relationship!")
+        print("-------- END DEBUG ---------\n")
+        
+        # Check if property is active or if the current user is admin or the property owner
+        if not property.isActive:
+            # Allow access if user is admin or the property owner
+            if not current_user.is_authenticated or (current_user.roleId != Roles.ADMIN and property.ownerId != current_user.userId):
+                flash('This property is not currently active', 'warning')
+                return redirect(url_for('properties'))
 
-    amenities = property.amenities if hasattr(property, 'amenities') else []
-    return render_template('properties/detail.html', 
-                         property=property,
-                         amenities=amenities)
+        # Enhanced image handling with better error checking
+        if not hasattr(property, 'images') or property.images is None:
+            property.images = []
+            
+        # Query images directly if the relationship isn't working properly
+        if len(property.images) == 0:
+            images = PropertyImages.query.filter_by(propertyId=property_id).all()
+            if images:
+                property.images = images
+                # Debug logging to diagnose image issues
+                print(f"Retrieved {len(images)} images for property {property_id} directly from database")
+        
+        # Get amenities for this property
+        amenities = []
+        try:
+            amenities = property.amenities
+        except Exception as e:
+            print(f"Error loading amenities: {str(e)}")
+        
+        # Add debug context to help track the issue
+        debug_context = {
+            'property_id': property_id,
+            'image_count': len(property.images),
+            'image_urls': [img.imageURL for img in property.images] if property.images else []
+        }
+            
+        return render_template('properties/detail.html', 
+                            property=property,
+                            amenities=amenities,
+                            debug=debug_context)
+    except Exception as e:
+        print(f"Error in property_detail route: {str(e)}")
+        flash('An error occurred while loading the property details', 'danger')
+        return redirect(url_for('properties'))
 
 @app.route('/add-property', methods=['GET', 'POST'])
 @login_required
@@ -284,12 +344,45 @@ def add_property():
     form = PropertyForm()
     if form.validate_on_submit():
         try:
-            # Create new property
+            # Add validation similar to edit_property
+            # Validate carpet area
+            carpet_area = form.carpet_area.data
+            max_area = 100000  # 100,000 sq.ft maximum
+            
+            if isinstance(carpet_area, str):
+                carpet_area = carpet_area.replace(',', '')
+                try:
+                    carpet_area = float(carpet_area)
+                except ValueError:
+                    raise ValueError("Invalid carpet area value")
+                    
+            if carpet_area <= 0 or carpet_area > max_area:
+                raise ValueError(f"Carpet area must be between 1 and {max_area} sq.ft")
+                
+            # Validate price
+            price = form.price.data
+            if isinstance(price, str):
+                price = price.replace(',', '')
+                try:
+                    price = float(price)
+                except ValueError:
+                    raise ValueError("Invalid price value")
+                    
+            # Validate maintenance charge if provided
+            maintenance = form.maintenance_charge.data
+            if maintenance and isinstance(maintenance, str):
+                maintenance = maintenance.replace(',', '')
+                try:
+                    maintenance = float(maintenance) if maintenance else None
+                except ValueError:
+                    raise ValueError("Invalid maintenance charge value")
+            
+            # Create new property with validated data
             property = Property(
                 address=form.address.data,
                 ownerId=current_user.userId,
-                price=form.price.data,
-                carpetArea=form.carpet_area.data,
+                price=price,
+                carpetArea=carpet_area,
                 typeId=form.property_type.data,
                 locationId=form.location.data,
                 reraRegistered=form.rera_registered.data,
@@ -300,7 +393,7 @@ def add_property():
                 propertyCategory=form.property_category.data,
                 latitude=form.latitude.data,
                 longitude=form.longitude.data,
-                maintenanceCharge=form.maintenance_charge.data,
+                maintenanceCharge=maintenance,
                 totalFloors=form.total_floors.data,
                 floorNumber=form.floor_number.data,
                 waterSupply=form.water_supply.data,
@@ -325,6 +418,10 @@ def add_property():
             flash('Your property has been listed successfully!', 'success')
             return redirect(url_for('property_detail', property_id=property.propertyId))
             
+        except ValueError as e:
+            db.session.rollback()
+            flash(f'Validation error: {str(e)}', 'danger')
+            return render_template('properties/add.html', form=form)
         except Exception as e:
             db.session.rollback()
             flash(f'Error listing property: {str(e)}', 'danger')
@@ -335,13 +432,13 @@ def add_property():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    if current_user.roleId == 4:  # Seller
+    if current_user.roleId == Roles.SELLER:  # Seller
         properties = Property.query.filter_by(ownerId=current_user.userId).all()
         return render_template('dashboard/seller.html', properties=properties)
-    elif current_user.roleId == 3:  # Buyer
+    elif current_user.roleId == Roles.BUYER:  # Buyer
         favorites = current_user.favorites
         return render_template('dashboard/buyer.html', favorites=favorites)
-    elif current_user.roleId == 2:  # Agent
+    elif current_user.roleId == Roles.AGENT:  # Agent
         # For now, just show all active properties since we don't have Listings
         properties = Property.query.filter_by(isActive=True).all()
         return render_template('dashboard/agent.html', properties=properties)
@@ -351,7 +448,7 @@ def dashboard():
 @app.route('/admin')
 @login_required
 def admin_dashboard():
-    if current_user.roleId != 1:  # Only for admin
+    if current_user.roleId != Roles.ADMIN:  # Only for admin
         abort(403)
     
     users = User.query.all()
@@ -363,7 +460,7 @@ def admin_dashboard():
 @app.route('/admin/users')
 @login_required
 def admin_users():
-    if current_user.roleId != 1:
+    if current_user.roleId != Roles.ADMIN:
         abort(403)
     users = User.query.all()
     return render_template('admin/users.html', users=users)
@@ -371,7 +468,7 @@ def admin_users():
 @app.route('/admin/properties')
 @login_required
 def admin_properties():
-    if current_user.roleId != 1:
+    if current_user.roleId != Roles.ADMIN:
         abort(403)
     
     page = request.args.get('page', 1, type=int)
@@ -401,7 +498,7 @@ def admin_properties():
 @app.route('/admin/edit_user/<int:user_id>', methods=['GET', 'POST'])
 @login_required
 def admin_edit_user(user_id):
-    if current_user.roleId != 1:
+    if current_user.roleId != Roles.ADMIN:
         abort(403)
     user = User.query.get_or_404(user_id)
     if request.method == 'POST':
@@ -419,7 +516,7 @@ def admin_edit_user(user_id):
 @app.route('/admin/edit_property/<int:property_id>', methods=['GET', 'POST'])
 @login_required
 def admin_edit_property(property_id):
-    if current_user.roleId != 1:
+    if current_user.roleId != Roles.ADMIN:
         abort(403)
         
     property = Property.query.get_or_404(property_id)
@@ -772,31 +869,64 @@ def valuate_property():
 @app.route('/loan/apply', methods=['POST'])
 @login_required
 def apply_loan():
-    # Validate and process loan application
-    # Integrate with bank APIs (example with mock)
-    bank_response = {
-        'status': 'pre_approved',
-        'reference_id': 'LOAN'+str(random.randint(100000, 999999)),
-        'max_amount': request.form['amount'] * 1.2
-    }
-    
-    return render_template('loan/application_result.html', result=bank_response)
+    try:
+        # Validate amount and convert to float
+        amount = 0
+        try:
+            amount = float(request.form['amount'])
+            if amount <= 0:
+                raise ValueError("Loan amount must be greater than zero")
+        except (ValueError, KeyError):
+            flash("Please enter a valid loan amount", "danger")
+            return redirect(url_for('loan_calculator'))
+        
+        # Process loan application with validation
+        # Generate reference ID safely
+        reference_id = f"LOAN{random.randint(100000, 999999)}"
+        
+        # Mock approval with safety checks
+        max_amount = amount * 1.2
+        
+        # Create response data
+        bank_response = {
+            'status': 'pre_approved',
+            'reference_id': reference_id,
+            'max_amount': max_amount,
+            'user_id': current_user.userId,
+            'application_date': db.func.now()
+        }
+        
+        return render_template('loan/application_result.html', result=bank_response)
+    except Exception as e:
+        flash(f"Error processing loan application: {str(e)}", "danger")
+        return redirect(url_for('loan_calculator'))
 
 @app.route('/tools/compare')
 def compare_properties():
-    # Get property IDs from session or query parameters
+    # Get property IDs from session or query parameters - create a new list instead of directly referencing
     properties_to_compare = session.get('compare_list', [])
+    if not isinstance(properties_to_compare, list):
+        properties_to_compare = []
+    else:
+        # Create a new copy to avoid direct modification of the session object
+        properties_to_compare = properties_to_compare.copy()
     
     # Handle adding new property to comparison
     if add_id := request.args.get('add'):
-        if len(properties_to_compare) < 3 and int(add_id) not in properties_to_compare:
-            properties_to_compare.append(int(add_id))
+        add_id_int = int(add_id)
+        if len(properties_to_compare) < 3 and add_id_int not in properties_to_compare:
+            # Append to our copy, not directly to the session object
+            properties_to_compare.append(add_id_int)
+            # Then update the session with the new list
             session['compare_list'] = properties_to_compare
     
     # Handle removing property from comparison
     if remove_id := request.args.get('remove'):
-        if int(remove_id) in properties_to_compare:
-            properties_to_compare.remove(int(remove_id))
+        remove_id_int = int(remove_id)
+        if remove_id_int in properties_to_compare:
+            # Remove from our copy, not directly from the session object
+            properties_to_compare.remove(remove_id_int)
+            # Then update the session with the new list
             session['compare_list'] = properties_to_compare
     
     # Fetch property details for comparison
@@ -974,11 +1104,11 @@ def privacy():
 @app.route('/admin/toggle-user-status/<int:user_id>', methods=['POST'])
 @login_required
 def admin_toggle_user_status(user_id):
-    if current_user.roleId != 1:  # Only admin can toggle user status
+    if current_user.roleId != Roles.ADMIN:  # Only admin can toggle user status
         abort(403)
     
     user = User.query.get_or_404(user_id)
-    if user.roleId == 1:  # Cannot deactivate admin users
+    if user.roleId == Roles.ADMIN:  # Cannot deactivate admin users
         abort(400)
     
     user.isActive = not user.isActive
@@ -988,7 +1118,7 @@ def admin_toggle_user_status(user_id):
 @app.route('/admin/toggle-property-status/<int:property_id>', methods=['POST'])
 @login_required
 def admin_toggle_property_status(property_id):
-    if current_user.roleId != 1:  # Only admin can toggle property status
+    if current_user.roleId != Roles.ADMIN:  # Only admin can toggle property status
         abort(403)
     
     property = Property.query.get_or_404(property_id)
@@ -999,13 +1129,16 @@ def admin_toggle_property_status(property_id):
 @app.route('/admin/property/delete-image/<int:image_id>', methods=['POST'])
 @login_required
 def admin_delete_property_image(image_id):
-    if current_user.roleId != 1:
+    if current_user.roleId != Roles.ADMIN:
         abort(403)
     
     image = PropertyImages.query.get_or_404(image_id)
     try:
-        # Remove the leading slash and convert URL path to filesystem path
-        file_path = image.imageURL.lstrip('/')
+        # Fix path handling to be consistent with how files are saved
+        # The imageURL has a leading slash that needs to be removed for filesystem path
+        image_url_path = image.imageURL.lstrip('/')
+        file_path = os.path.join(app.root_path, image_url_path)
+        
         if os.path.exists(file_path):
             os.remove(file_path)
         
@@ -1019,10 +1152,10 @@ def admin_delete_property_image(image_id):
 @app.route('/profile')
 @login_required
 def profile():
-    if current_user.roleId == 4:  # Seller
+    if current_user.roleId == Roles.SELLER:  # Seller
         user_properties = Property.query.filter_by(ownerId=current_user.userId).all()
         return render_template('user/profile.html', user_properties=user_properties)
-    elif current_user.roleId == 3:  # Buyer
+    elif current_user.roleId == Roles.BUYER:  # Buyer
         favorites = Favorites.query.filter_by(userId=current_user.userId).all()
         return render_template('user/profile.html', favorites=favorites)
     return render_template('user/profile.html')
@@ -1103,7 +1236,7 @@ def delete_account():
             return redirect(url_for('settings'))
         
         # Delete user's data
-        if current_user.roleId == 4:  # Seller
+        if current_user.roleId == Roles.SELLER:  # Seller
             Property.query.filter_by(ownerId=current_user.userId).delete()
         Favorites.query.filter_by(userId=current_user.userId).delete()
         
@@ -1118,11 +1251,11 @@ def delete_account():
 @app.route('/admin/ban-user/<int:user_id>', methods=['POST'])
 @login_required
 def admin_ban_user(user_id):
-    if current_user.roleId != 1:  # Only admin can ban users
+    if current_user.roleId != Roles.ADMIN:  # Only admin can ban users
         abort(403)
     
     user = User.query.get_or_404(user_id)
-    if user.roleId == 1:  # Cannot ban admin users
+    if user.roleId == Roles.ADMIN:  # Cannot ban admin users
         flash('Cannot ban admin users', 'danger')
         return redirect(url_for('admin_users'))
     
@@ -1137,92 +1270,63 @@ def admin_ban_user(user_id):
 @app.route('/admin/delete-property/<int:property_id>', methods=['POST'])
 @login_required
 def admin_delete_property(property_id):
-    if current_user.roleId != 1:  # Only admin can delete properties
+    if current_user.roleId != Roles.ADMIN:  # Only admin can delete properties
         abort(403)
     
     property = Property.query.get_or_404(property_id)
     
     try:
-        # Start a transaction
-        db.session.begin_nested()
+        # Use a transaction context manager pattern
+        session = db.session
+        session.begin()
         
         # 1. Delete from Favorites first (no dependencies)
         Favorites.query.filter_by(propertyId=property_id).delete()
         
-        # 2. Delete Listing records (no dependencies)
-        db.session.execute(text("DELETE FROM Listing WHERE propertyId = :pid"), {"pid": property_id})
+        # 2. Delete Listing records (if table exists)
+        try:
+            session.execute(text("DELETE FROM Listing WHERE propertyId = :pid"), {"pid": property_id})
+        except Exception as e:
+            pass
         
         # 3. Delete from PropertyAmenities (no dependencies)
         PropertyAmenity.query.filter_by(propertyId=property_id).delete()
         
         # 4. Delete associated images and their files
+        image_deletion_errors = []
         for image in property.images:
             try:
                 file_path = os.path.join(app.root_path, image.imageURL.lstrip('/'))
                 if os.path.exists(file_path):
                     os.remove(file_path)
-                db.session.delete(image)
+                session.delete(image)
             except Exception as e:
-                print(f"Error deleting image file: {e}")
+                image_deletion_errors.append(str(e))
         
-        # 5. Delete property documents
-        db.session.execute(text("DELETE FROM PropertyDocuments WHERE propertyId = :pid"), {"pid": property_id})
-        
-        # 6. Handle all Payment records first since they reference other tables
-        # Delete payment records linked to transactions of this property
-        db.session.execute(text("""
-            DELETE FROM Payment 
-            WHERE transactionId IN (
-                SELECT transactionId 
-                FROM Transaction 
-                WHERE propertyId = :pid
-            )
-        """), {"pid": property_id})
-        
-        # Delete payment records linked to rental agreements of this property
-        db.session.execute(text("""
-            DELETE FROM Payment 
-            WHERE rentalId IN (
-                SELECT agreementId 
-                FROM RentalAgreement 
-                WHERE propertyId = :pid
-            )
-        """), {"pid": property_id})
-        
-        # Delete payment records linked to property tax of this property
-        db.session.execute(text("""
-            DELETE FROM Payment 
-            WHERE taxId IN (
-                SELECT taxId 
-                FROM PropertyTax 
-                WHERE propertyId = :pid
-            )
-        """), {"pid": property_id})
-        
-        # 7. Now that all payments are handled, we can delete from the referenced tables
-        db.session.execute(text("DELETE FROM Transaction WHERE propertyId = :pid"), {"pid": property_id})
-        db.session.execute(text("DELETE FROM RentalAgreement WHERE propertyId = :pid"), {"pid": property_id})
-        db.session.execute(text("DELETE FROM PropertyTax WHERE propertyId = :pid"), {"pid": property_id})
-        
-        # 8. Delete any maintenance requests
-        db.session.execute(text("DELETE FROM Maintenance WHERE propertyId = :pid"), {"pid": property_id})
-        
-        # 9. Delete any valuations
-        db.session.execute(text("DELETE FROM Valuation WHERE propertyId = :pid"), {"pid": property_id})
-        
-        # 10. Delete any legal cases
-        db.session.execute(text("DELETE FROM LegalCase WHERE propertyId = :pid"), {"pid": property_id})
-        
-        # 11. Delete residential or commercial property details
-        db.session.execute(text("DELETE FROM ResidentialProperty WHERE propertyId = :pid"), {"pid": property_id})
-        db.session.execute(text("DELETE FROM CommercialProperty WHERE propertyId = :pid"), {"pid": property_id})
+        # Handle other dependent tables - wrap each in try/except to handle if tables don't exist
+        for table_name in [
+            "PropertyDocuments", "Payment", "Transaction", 
+            "RentalAgreement", "PropertyTax", "Maintenance",
+            "Valuation", "LegalCase", "ResidentialProperty", "CommercialProperty"
+        ]:
+            try:
+                session.execute(
+                    text(f"DELETE FROM {table_name} WHERE propertyId = :pid"),
+                    {"pid": property_id}
+                )
+            except Exception:
+                pass
         
         # Finally delete the property itself
-        db.session.delete(property)
+        session.delete(property)
         
         # Commit all changes
-        db.session.commit()
-        flash('Property has been deleted successfully', 'success')
+        session.commit()
+        
+        if image_deletion_errors:
+            flash(f'Property deleted with warnings: Some image files could not be deleted.', 'warning')
+        else:
+            flash('Property has been deleted successfully', 'success')
         
     except Exception as e:
         db.session.rollback()
@@ -1233,7 +1337,7 @@ def admin_delete_property(property_id):
 @app.route('/admin/properties/<int:property_id>/toggle-featured', methods=['POST'])
 @login_required
 def admin_toggle_featured(property_id):
-    if current_user.roleId != 1:
+    if current_user.roleId != Roles.ADMIN:
         abort(403)
     
     property = Property.query.get_or_404(property_id)
@@ -1250,16 +1354,80 @@ def edit_property(property_id):
     property = Property.query.get_or_404(property_id)
     
     # Check if user is the owner
-    if property.ownerId != current_user.userId:
+    if property.ownerId != current_user.userId and current_user.roleId != Roles.ADMIN:
         abort(403)
         
-    form = PropertyForm(obj=property)
+    form = PropertyForm()
+    
+    if request.method == 'GET':
+        # Manually populate the form with existing property data
+        form.address.data = property.address
+        form.price.data = property.price
+        form.carpet_area.data = property.carpetArea
+        form.property_type.data = property.typeId
+        form.location.data = property.locationId
+        form.furnishing_type.data = property.furnishingType
+        form.property_age.data = property.propertyAge
+        form.ownership_type.data = property.ownershipType
+        form.listing_type.data = property.listingType
+        form.property_category.data = property.propertyCategory
+        form.rera_registered.data = property.reraRegistered
+        form.latitude.data = property.latitude
+        form.longitude.data = property.longitude
+        form.maintenance_charge.data = property.maintenanceCharge
+        form.total_floors.data = property.totalFloors
+        form.floor_number.data = property.floorNumber
+        form.water_supply.data = property.waterSupply
+        form.facing.data = property.facing
+        form.overlooking.data = property.overlooking
+        form.power_backup.data = property.powerBackup
+        form.description.data = property.description
+        form.featured.data = property.isFeatured
+        
+        # Populate the amenities - get existing amenity IDs for this property
+        existing_amenities = [pa.amenityId for pa in PropertyAmenity.query.filter_by(propertyId=property_id).all()]
+        form.amenities.data = existing_amenities
     
     if form.validate_on_submit():
         try:
+            # Get form data with validation
+            carpet_area = form.carpet_area.data
+            
+            # Validate carpet_area: ensure it's a reasonable number for a property
+            max_area = 100000  # 100,000 sq.ft is already extremely large
+            
+            # If carpet_area is a string (possibly with commas), clean it
+            if isinstance(carpet_area, str):
+                carpet_area = carpet_area.replace(',', '')
+                try:
+                    carpet_area = float(carpet_area)
+                except ValueError:
+                    raise ValueError("Invalid carpet area value")
+            
+            if carpet_area <= 0 or carpet_area > max_area:
+                raise ValueError(f"Carpet area must be between 1 and {max_area} sq.ft")
+                
+            # Similar validation for price and maintenance charge
+            price = form.price.data
+            if isinstance(price, str):
+                price = price.replace(',', '')
+                try:
+                    price = float(price)
+                except ValueError:
+                    raise ValueError("Invalid price value")
+                    
+            maintenance = form.maintenance_charge.data
+            if maintenance and isinstance(maintenance, str):
+                maintenance = maintenance.replace(',', '')
+                try:
+                    maintenance = float(maintenance) if maintenance else None
+                except ValueError:
+                    raise ValueError("Invalid maintenance charge value")
+            
+            # Update property with validated data
             property.address = form.address.data
-            property.price = form.price.data
-            property.carpetArea = form.carpet_area.data
+            property.price = price
+            property.carpetArea = carpet_area
             property.typeId = form.property_type.data
             property.locationId = form.location.data
             property.furnishingType = form.furnishing_type.data
@@ -1270,7 +1438,7 @@ def edit_property(property_id):
             property.reraRegistered = form.rera_registered.data
             property.latitude = form.latitude.data
             property.longitude = form.longitude.data
-            property.maintenanceCharge = form.maintenance_charge.data
+            property.maintenanceCharge = maintenance
             property.totalFloors = form.total_floors.data
             property.floorNumber = form.floor_number.data
             property.waterSupply = form.water_supply.data
@@ -1278,6 +1446,7 @@ def edit_property(property_id):
             property.overlooking = form.overlooking.data
             property.powerBackup = form.power_backup.data
             property.description = form.description.data
+            property.isFeatured = form.featured.data if form.featured else False
             
             # Update amenities
             PropertyAmenity.query.filter_by(propertyId=property_id).delete()
@@ -1290,6 +1459,10 @@ def edit_property(property_id):
             flash('Property updated successfully!', 'success')
             return redirect(url_for('property_detail', property_id=property_id))
             
+        except ValueError as e:
+            db.session.rollback()
+            flash(f'Validation error: {str(e)}', 'danger')
+            return render_template('properties/add.html', form=form, edit_mode=True)
         except Exception as e:
             db.session.rollback()
             flash(f'Error updating property: {str(e)}', 'danger')

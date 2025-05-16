@@ -2,23 +2,28 @@
 <div class="amenities-section">
     <h5>Amenities</h5>
     <div class="amenities-grid">
+        {% set available_images = ['swimming-pool.png', 'gym.png', 'garden.png', 'Power Backup.png', '247 Security.png', 'Clubhouse.png', 'EV Charging.png'] %}
+        
         {% set amenities_icons = {
             'Swimming Pool': 'swimming-pool.png',
             'Gym': 'gym.png',
             'Garden': 'garden.png',
-            'Parking': 'parking3.png',
-            'Security': 'security.png',
-            'Playground': 'playground.png'
+            'Landscaped Garden': 'garden.png',
+            'Security': '247 Security.png',
+            '24/7 Security': '247 Security.png',
+            'Power Backup': 'Power Backup.png',
+            'Clubhouse': 'Clubhouse.png',
+            'EV Charging': 'EV Charging.png'
         } %}
         
         {% for property_amenity in property.amenities %}
         <div class="amenity-item">
-            {% if property_amenity.amenity.name in amenities_icons %}
-                <img src="{{ url_for('static', filename='images/properties/' ~ amenities_icons[property_amenity.amenity.name]) }}" 
+            {% set icon_name = amenities_icons.get(property_amenity.amenity.name) %}
+            {% if icon_name and icon_name in available_images %}
+                <img src="{{ url_for('static', filename='images/properties/' ~ icon_name) }}" 
                      alt="{{ property_amenity.amenity.name }}" 
                      width="24" 
-                     height="24"
-                     onerror="this.src='{{ url_for('static', filename='images/properties/1.jpg') }}'">
+                     height="24">
             {% else %}
                 <i class="bi bi-check-circle"></i>
             {% endif %}

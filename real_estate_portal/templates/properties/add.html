@@ -46,6 +46,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    position: relative; /* Added for proper positioning */
 }
 
 .amenity-item:hover {
@@ -54,15 +55,26 @@
 }
 
 .amenity-item.selected {
-    background: var(--primary-color);
-    color: white;
-    border-color: var(--primary-color);
+    background: rgba(0, 123, 255, 0.15); /* Lighter blue background */
+    color: #0056b3; /* Darker blue text */
+    border-color: #0056b3;
+    font-weight: bold;
 }
 
-.amenity-item img {
+.amenity-item img, .amenity-item i {
     width: 24px;
     height: 24px;
     object-fit: contain;
+    flex-shrink: 0; /* Prevent the icon from shrinking */
+}
+
+/* Add a checkmark for selected items */
+.amenity-item.selected::after {
+    content: "✓";
+    position: absolute;
+    right: 10px;
+    color: #0056b3;
+    font-weight: bold;
 }
 </style>
 {% endblock %}
@@ -218,11 +230,36 @@
                         <!-- Amenities -->
                         <h5 class="mb-4">Amenities</h5>
                         <div class="amenity-selector mb-4">
+                            {% set available_images = ['swimming-pool.png', 'gym.png', 'garden.png', 'Power Backup.png', '247 Security.png', 'Clubhouse.png', 'EV Charging.png'] %}
+                            
+                            {% set amenities_icons = {
+                                '1': 'swimming-pool.png',
+                                '2': 'gym.png',
+                                '3': 'garden.png',
+                                '4': 'placeholder.jpg',
+                                '5': '247 Security.png',
+                                '6': 'placeholder.jpg',
+                                'Swimming Pool': 'swimming-pool.png',
+                                'Gym': 'gym.png',
+                                'Garden': 'garden.png',
+                                'Landscaped Garden': 'garden.png',
+                                'Security': '247 Security.png',
+                                '24/7 Security': '247 Security.png',
+                                'Power Backup': 'Power Backup.png',
+                                'Clubhouse': 'Clubhouse.png',
+                                'EV Charging': 'EV Charging.png'
+                            } %}
+                            
                             {% for value, label in form.amenities.choices %}
                             <div class="amenity-item" data-value="{{ value }}">
-                                <img src="{{ url_for('static', filename='images/properties/' ~ value|lower|replace(' ', '-') ~ '.png') }}" 
-                                     alt="{{ label }}"
-                                     onerror="this.src='{{ url_for('static', filename='images/properties/parking3.png') }}'">
+                                {% set icon_key = value|string %}
+                                {% set icon_name = amenities_icons.get(icon_key) or amenities_icons.get(label) %}
+                                {% if icon_name and icon_name in available_images %}
+                                    <img src="{{ url_for('static', filename='images/properties/' ~ icon_name) }}" 
+                                         alt="{{ label }}">
+                                {% else %}
+                                    <i class="bi bi-check-circle"></i>
+                                {% endif %}
                                 <span>{{ label }}</span>
                                 <input type="checkbox" name="amenities" value="{{ value }}" 
                                        style="display: none;" class="amenity-checkbox">
@@ -281,6 +318,15 @@
 const map = L.map('map').setView([20.5937, 78.9629], 5);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
+// If we have lat/lng values from the form, use them
+if(document.getElementById('latitude').value && document.getElementById('longitude').value) {
+    const lat = parseFloat(document.getElementById('latitude').value);
+    const lng = parseFloat(document.getElementById('longitude').value);
+    
+    map.setView([lat, lng], 13);
+    marker = L.marker([lat, lng]).addTo(map);
+}
+
 let marker;
 map.on('click', function(e) {
     const lat = e.latlng.lat;
@@ -297,8 +343,29 @@ map.on('click', function(e) {
 });
 
 // Initialize Dropzone
+let propertyId;
+
+// In edit mode, get property ID from the form action URL or hidden field
+if (document.querySelector('form#propertyForm').action) {
+    const actionUrl = document.querySelector('form#propertyForm').action;
+    const matches = actionUrl.match(/\/property\/(\d+)\/edit/);
+    if (matches && matches[1]) {
+        propertyId = matches[1];
+    }
+}
+
+// If we couldn't get it from the form action, try from URL parameters or path
+if (!propertyId) {
+    propertyId = new URLSearchParams(window.location.search).get('property_id') || 
+                window.location.pathname.split('/').filter(p => p).pop();
+}
+
+// For debugging
+console.log("Using propertyId for uploads:", propertyId);
+
+// Initialize Dropzone with the correct URL
 Dropzone.options.propertyImages = {
-    url: "/upload-property-image",
+    url: `/upload/${propertyId}`,
     paramName: "file",
     maxFiles: 10,
     maxFilesize: 5,
@@ -307,36 +374,116 @@ Dropzone.options.propertyImages = {
     createImageThumbnails: true,
     init: function() {
         this.on("success", function(file, response) {
-            // Add hidden input with image URL
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'images[]';
-            input.value = response.imageUrl;
-            document.getElementById('propertyForm').appendChild(input);
+            console.log("Upload successful:", response);
+            
+            // Check if response is JSON object with imageUrl property
+            if (response && response.imageUrl) {
+                file.imageUrl = response.imageUrl;
+            } else if (response && response.success && response.imageUrl) {
+                file.imageUrl = response.imageUrl;
+            } else if (typeof response === 'string') {
+                try {
+                    // Try to parse as JSON if it's a string
+                    const parsedResponse = JSON.parse(response);
+                    file.imageUrl = parsedResponse.imageUrl || parsedResponse.image_url;
+                } catch (e) {
+                    console.error("Failed to parse response:", e);
+                }
+            }
+            
+            // Add hidden input with image URL if available
+            if (file.imageUrl) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'images[]';
+                input.value = file.imageUrl;
+                document.getElementById('propertyForm').appendChild(input);
+            }
+        });
+        
+        this.on("error", function(file, errorMessage) {
+            console.error("Upload error:", errorMessage);
+            let message = "Error uploading image";
+            
+            if (typeof errorMessage === 'string') {
+                message = errorMessage;
+            } else if (errorMessage && errorMessage.error) {
+                message = errorMessage.error;
+            }
+            
+            // Display error message
+            alert("Error uploading image: " + message);
+            
+            // Add error styling to the file
+            file.previewElement.classList.add('dz-error');
+            const errorDisplay = file.previewElement.querySelector('.dz-error-message span');
+            if (errorDisplay) {
+                errorDisplay.textContent = message;
+            }
         });
     }
 };
 
-// Handle amenity selection
-document.querySelectorAll('.amenity-item').forEach(item => {
-    item.addEventListener('click', function() {
-        this.classList.toggle('selected');
-        const checkbox = this.querySelector('.amenity-checkbox');
-        checkbox.checked = !checkbox.checked;
+// Better implementation of amenity selection
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("DOM loaded - setting up amenity handlers");
+    
+    // Pre-select already checked amenities
+    document.querySelectorAll('.amenity-item').forEach(item => {
+        const checkbox = item.querySelector('.amenity-checkbox');
+        if (checkbox && checkbox.checked) {
+            item.classList.add('selected');
+            console.log(`Pre-selected amenity: ${checkbox.value}`);
+        }
+    });
+    
+    // Set up click handlers
+    document.querySelectorAll('.amenity-item').forEach(item => {
+        item.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const checkbox = this.querySelector('.amenity-checkbox');
+            if (!checkbox) return false;
+            
+            // Toggle selection state
+            const wasSelected = checkbox.checked;
+            checkbox.checked = !wasSelected;
+            
+            // Update visual state
+            if (checkbox.checked) {
+                this.classList.add('selected');
+            } else {
+                this.classList.remove('selected');
+            }
+            
+            console.log(`Amenity ${checkbox.value}: ${checkbox.checked ? 'Selected' : 'Unselected'}`);
+            return false;
+        };
     });
 });
 
 // Form validation
 document.getElementById('propertyForm').addEventListener('submit', function(e) {
-    const requiredFields = ['title', 'price', 'carpet_area', 'address'];
+    const requiredFields = ['price', 'carpet_area', 'address'];
     let isValid = true;
+    
+    // Clean up numeric inputs - remove commas before submission
+    const numericFields = ['price', 'carpet_area', 'maintenance_charge', 'total_floors', 'floor_number'];
+    numericFields.forEach(fieldId => {
+        const input = document.getElementById(fieldId);
+        if (input && input.value) {
+            // Remove any non-numeric characters except decimal point
+            input.value = input.value.replace(/[^\d.]/g, '');
+        }
+    });
     
     requiredFields.forEach(field => {
         const input = document.getElementById(field);
-        if (!input.value) {
+        if (input && !input.value) {
             input.classList.add('is-invalid');
             isValid = false;
-        } else {
+        } else if (input) {
             input.classList.remove('is-invalid');
         }
     });
@@ -349,12 +496,14 @@ document.getElementById('propertyForm').addEventListener('submit', function(e) {
 
 // Price formatting
 const priceInput = document.getElementById('price');
-priceInput.addEventListener('input', function(e) {
-    let value = this.value.replace(/[^\d]/g, '');
-    if (value) {
-        value = parseInt(value).toLocaleString('en-IN');
-        this.value = value;
-    }
-});
+if (priceInput) {
+    priceInput.addEventListener('input', function(e) {
+        let value = this.value.replace(/[^\d]/g, '');
+        if (value) {
+            value = parseInt(value).toLocaleString('en-IN');
+            this.value = value;
+        }
+    });
+}
 </script>
 {% endblock %}

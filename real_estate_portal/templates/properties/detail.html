@@ -37,18 +37,30 @@
                         {% if property.images %}
                             {% for image in property.images %}
                             <div class="swiper-slide">
-                                <a href="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/' ~ loop.index ~ '.jpg') }}" data-fancybox="gallery">
-                                    <img src="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/' ~ loop.index ~ '.jpg') }}" 
-                                         class="img-fluid w-100" 
-                                         style="height: 500px; object-fit: cover; border-radius: 10px;"
-                                         alt="{{ property.property_type.typeName }} - Image {{ loop.index }}"
-                                         onerror="this.src='{{ url_for('static', filename='images/properties/1.jpg') }}'">
-                                </a>
+                                <!-- Handle both .jpg and .jpeg extensions -->
+                                <img src="{{ image.imageURL }}" 
+                                     class="img-fluid w-100" 
+                                     style="height: 500px; object-fit: cover; border-radius: 10px;"
+                                     alt="{{ property.property_type.typeName }} - Image {{ loop.index }}"
+                                     onerror="
+                                        // If image fails to load, try with alternative extension
+                                        var currentSrc = this.src;
+                                        if (currentSrc.endsWith('.jpeg')) {
+                                            this.src = currentSrc.replace('.jpeg', '.jpg');
+                                        } else if (currentSrc.endsWith('.jpg')) {
+                                            this.src = currentSrc.replace('.jpg', '.jpeg');
+                                        } else {
+                                            this.src='/static/images/properties/placeholder.jpg';
+                                        }
+                                        this.onerror = function() {
+                                            this.src='/static/images/properties/placeholder.jpg';
+                                            this.onerror = null;
+                                        }">
                             </div>
                             {% endfor %}
                         {% else %}
                             <div class="swiper-slide">
-                                <img src="{{ url_for('static', filename='images/properties/1.jpg') }}" 
+                                <img src="/static/images/properties/placeholder.jpg" 
                                      class="img-fluid w-100" 
                                      style="height: 500px; object-fit: cover; border-radius: 10px;"
                                      alt="{{ property.property_type.typeName }}">
@@ -410,71 +422,37 @@
 <section class="container my-5">
     <h2 class="mb-4">Similar Properties</h2>
     <div class="row g-4">
-        <!-- Similar Property Card 1 -->
-        <div class="col-md-4">
-            <div class="card h-100 property-card">
-                <div class="position-relative">
-                    <img src="{{ url_for('static', filename='images/properties/5002/1.jpg') }}" class="card-img-top" 
-                         style="height: 220px; object-fit: cover;" alt="Similar Property">
-                    <span class="position-absolute top-0 end-0 m-2 badge bg-primary">{{ property.listingType }}</span>
-                </div>
-                <div class="card-body">
-                    <h5 class="card-title mb-1">{{ property.property_type.typeName }} in {{ property.location.city }}</h5>
-                    <p class="text-primary h5 mb-2">₹{{ "{:,.0f}".format(property.price - 500000) }}</p>
-                    <p class="text-muted mb-2"><i class="bi bi-geo-alt"></i> {{ property.location.city }}</p>
-                    <div class="d-flex justify-content-between small text-muted mb-3">
-                        <span><i class="bi bi-arrows-angle-expand me-1"></i>{{ property.carpetArea - 50 }} sq.ft</span>
-                        <span><i class="bi bi-house-door me-1"></i>{{ property.furnishingType }}</span>
-                    </div>
-                    <a href="{{ url_for('property_detail', property_id=property.propertyId-1 if property.propertyId > 5001 else property.propertyId+1) }}" 
-                       class="btn btn-outline-primary w-100">View Details</a>
-                </div>
-            </div>
-        </div>
+        <!-- Similar Property Cards - Dynamically loaded based on similar properties -->
+        {% set similar_ids = [
+            property.propertyId-1 if property.propertyId > 5001 else property.propertyId+1,
+            property.propertyId-2 if property.propertyId > 5002 else property.propertyId+2,
+            property.propertyId-3 if property.propertyId > 5003 else property.propertyId+3
+        ] %}
         
-        <!-- Similar Property Card 2 -->
-        <div class="col-md-4">
-            <div class="card h-100 property-card">
-                <div class="position-relative">
-                    <img src="{{ url_for('static', filename='images/properties/5003/1.jpg') }}" class="card-img-top" 
-                         style="height: 220px; object-fit: cover;" alt="Similar Property">
-                    <span class="position-absolute top-0 end-0 m-2 badge bg-primary">{{ property.listingType }}</span>
-                </div>
-                <div class="card-body">
-                    <h5 class="card-title mb-1">{{ property.property_type.typeName }} in {{ property.location.city }}</h5>
-                    <p class="text-primary h5 mb-2">₹{{ "{:,.0f}".format(property.price + 800000) }}</p>
-                    <p class="text-muted mb-2"><i class="bi bi-geo-alt"></i> {{ property.location.city }}</p>
-                    <div class="d-flex justify-content-between small text-muted mb-3">
-                        <span><i class="bi bi-arrows-angle-expand me-1"></i>{{ property.carpetArea + 75 }} sq.ft</span>
-                        <span><i class="bi bi-house-door me-1"></i>{{ property.furnishingType }}</span>
+        {% for id in similar_ids %}
+            <div class="col-md-4">
+                <div class="card h-100 property-card">
+                    <div class="position-relative">
+                        <!-- Using direct image path approach -->
+                        <img src="/static/images/properties/{{ id }}/1.jpg" class="card-img-top" 
+                             style="height: 220px; object-fit: cover;" alt="Similar Property"
+                             onerror="this.onerror=null; this.src='/static/images/properties/placeholder.jpg';">
+                        <span class="position-absolute top-0 end-0 m-2 badge bg-primary">{{ property.listingType }}</span>
                     </div>
-                    <a href="{{ url_for('property_detail', property_id=property.propertyId-2 if property.propertyId > 5002 else property.propertyId+2) }}" 
-                       class="btn btn-outline-primary w-100">View Details</a>
+                    <div class="card-body">
+                        <h5 class="card-title mb-1">{{ property.property_type.typeName }} in {{ property.location.city }}</h5>
+                        <p class="text-primary h5 mb-2">₹{{ "{:,.0f}".format(property.price + (loop.index * 300000 - 500000)) }}</p>
+                        <p class="text-muted mb-2"><i class="bi bi-geo-alt"></i> {{ property.location.city }}</p>
+                        <div class="d-flex justify-content-between small text-muted mb-3">
+                            <span><i class="bi bi-arrows-angle-expand me-1"></i>{{ property.carpetArea + (loop.index * 25 - 50) }} sq.ft</span>
+                            <span><i class="bi bi-house-door me-1"></i>{{ property.furnishingType }}</span>
+                        </div>
+                        <a href="{{ url_for('property_detail', property_id=id) }}" 
+                           class="btn btn-outline-primary w-100">View Details</a>
+                    </div>
                 </div>
             </div>
-        </div>
-        
-        <!-- Similar Property Card 3 -->
-        <div class="col-md-4">
-            <div class="card h-100 property-card">
-                <div class="position-relative">
-                    <img src="{{ url_for('static', filename='images/properties/5004/1.jpg') }}" class="card-img-top" 
-                         style="height: 220px; object-fit: cover;" alt="Similar Property">
-                    <span class="position-absolute top-0 end-0 m-2 badge bg-primary">{{ property.listingType }}</span>
-                </div>
-                <div class="card-body">
-                    <h5 class="card-title mb-1">{{ property.property_type.typeName }} in {{ property.location.city }}</h5>
-                    <p class="text-primary h5 mb-2">₹{{ "{:,.0f}".format(property.price - 200000) }}</p>
-                    <p class="text-muted mb-2"><i class="bi bi-geo-alt"></i> {{ property.location.city }}</p>
-                    <div class="d-flex justify-content-between small text-muted mb-3">
-                        <span><i class="bi bi-arrows-angle-expand me-1"></i>{{ property.carpetArea - 25 }} sq.ft</span>
-                        <span><i class="bi bi-house-door me-1"></i>{{ property.furnishingType }}</span>
-                    </div>
-                    <a href="{{ url_for('property_detail', property_id=property.propertyId-3 if property.propertyId > 5003 else property.propertyId+3) }}" 
-                       class="btn btn-outline-primary w-100">View Details</a>
-                </div>
-            </div>
-        </div>
+        {% endfor %}
     </div>
 </section>
 
