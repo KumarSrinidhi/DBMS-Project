@@ -42,15 +42,14 @@
             font-family: 'Playfair Display', serif;
             font-weight: 600;
         }
-        
-        /* Loading Spinner */
+          /* Loading Animation */
         #loading-overlay {
             position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(255, 255, 255, 0.98);
+            width: 100vw;
+            height: 100vh;
+            background-color: #fefcf9;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -63,17 +62,29 @@
             visibility: hidden;
         }
         
-        .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 5px solid rgba(44, 62, 80, 0.1);
-            border-radius: 50%;
-            border-top-color: var(--accent);
-            animation: spin 1s ease-in-out infinite;
+        .loading-container {
+            width: 100%;
+            height: 100%;
+            display: grid;
+            gap: 8px;
+            padding: 10px;
+            box-sizing: border-box;
         }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+
+        .dot {
+            width: 100%;
+            height: 100%;
+            background-color: #fbecd5;
+            border-radius: 50%;
+            transition: background-color 0.5s ease;
+        }
+
+        .dot.highlight {
+            background-color: #f9980c;
+        }
+
+        .dot.medium {
+            background-color: #fabb65;
         }
         
         /* Navbar */
@@ -393,10 +404,9 @@
     </style>
     {% block styles %}{% endblock %}
 </head>
-<body>
-    <!-- Loading Spinner -->
+<body>    <!-- Loading Animation -->
     <div id="loading-overlay">
-        <div class="loading-spinner"></div>
+        <div class="loading-container" id="loading-grid"></div>
     </div>
 
     <!-- Navigation -->
@@ -634,34 +644,193 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <!-- Custom Scripts -->
-    <script>
-        // Initialize AOS animations
+    <script>        // Initialize AOS animations
         AOS.init({
             duration: 800,
             easing: 'ease-in-out',
             once: true
         });
 
-        // Handle loading screen
+        // Handle loading animation
+        let isLoading = true;
+        let dotsCreated = false;
+        let animationInterval;
+        const dots = [];
         const loadingOverlay = document.getElementById('loading-overlay');
+        
+        // Function to calculate optimal grid size based on screen and desired dot size
+        function calculateGrid() {
+            const dotSize = 16; // Target dot size in pixels (including gap)
+            const screenWidth = window.innerWidth;
+            const screenHeight = window.innerHeight;
+            
+            const cols = Math.floor(screenWidth / dotSize);
+            const rows = Math.floor(screenHeight / dotSize);
+            
+            return { rows, cols };
+        }
+        
+        // Create dots filling the screen
+        function createDots() {
+            if (dotsCreated) return;
+            
+            const grid = document.getElementById('loading-grid');
+            const { rows, cols } = calculateGrid();
+            
+            // Set grid template
+            grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+            
+            // Create dots
+            for (let i = 0; i < rows * cols; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'dot';
+                grid.appendChild(dot);
+                dots.push(dot);
+            }
+            
+            // Random initial pattern
+            dots.forEach(dot => {
+                const random = Math.random();
+                if (random > 0.85) {
+                    dot.classList.add('highlight');
+                } else if (random > 0.65) {
+                    dot.classList.add('medium');
+                }
+            });
+            
+            dotsCreated = true;
+        }
+        
+        // Animation function
+        function animateDots() {
+            const total = dots.length;
+            
+            // Number of dots to change proportional to total dots
+            const dotsToChange = Math.max(5, Math.floor(total / 200));
+            
+            // Randomly select dots to highlight
+            for (let i = 0; i < dotsToChange; i++) {
+                const randomIndex = Math.floor(Math.random() * total);
+                const randomDot = dots[randomIndex];
+                
+                // Reset dot classes
+                randomDot.className = 'dot';
+                
+                // Randomly decide new state
+                const state = Math.random();
+                if (state > 0.6) {
+                    randomDot.classList.add('highlight');
+                } else if (state > 0.3) {
+                    randomDot.classList.add('medium');
+                }
+            }
+            
+            // Create wave effect occasionally
+            if (Math.random() > 0.95) {
+                createWaveEffect();
+            }
+        }
+        
+        // Create a wave-like effect from a random position
+        function createWaveEffect() {
+            const { rows, cols } = calculateGrid();
+            
+            // Random center point
+            const centerRow = Math.floor(Math.random() * rows);
+            const centerCol = Math.floor(Math.random() * cols);
+            
+            // For all dots, calculate distance from center
+            for (let i = 0; i < dots.length; i++) {
+                const row = Math.floor(i / cols);
+                const col = i % cols;
+                
+                const distance = Math.sqrt(
+                    Math.pow(row - centerRow, 2) + 
+                    Math.pow(col - centerCol, 2)
+                );
+                
+                // If within wave radius
+                if (distance < 8) {
+                    const delay = distance * 80;
+                    setTimeout(() => {
+                        if (i < dots.length) { // Safety check
+                            dots[i].className = 'dot';
+                            dots[i].classList.add(Math.random() > 0.5 ? 'highlight' : 'medium');
+                            
+                            // Return to random state after animation
+                            setTimeout(() => {
+                                if (i < dots.length) { // Safety check
+                                    if (Math.random() > 0.5) {
+                                        dots[i].className = 'dot';
+                                        if (Math.random() > 0.5) {
+                                            dots[i].classList.add('medium');
+                                        }
+                                    }
+                                }
+                            }, 500);
+                        }
+                    }, delay);
+                }
+            }
+        }
+        
+        // Handle window resize
+        function handleResize() {
+            // Clear existing dots
+            const grid = document.getElementById('loading-grid');
+            grid.innerHTML = '';
+            dots.length = 0;
+            dotsCreated = false;
+            
+            // Recreate dots with new dimensions
+            if (isLoading) {
+                createDots();
+            }
+        }
+        
+        // Start the animation
+        function startAnimation() {
+            clearInterval(animationInterval);
+            animationInterval = setInterval(animateDots, 200);
+            
+            // Create initial wave effects
+            setTimeout(() => {
+                createWaveEffect();
+                setTimeout(createWaveEffect, 500);
+            }, 500);
+        }
+        
+        // Initialize loading screen
+        document.addEventListener('DOMContentLoaded', () => {
+            createDots();
+            startAnimation();
+        });
         
         // Hide loading screen when page is fully loaded
         window.addEventListener('load', function() {
             loadingOverlay.classList.add('hidden');
             setTimeout(() => {
                 loadingOverlay.style.display = 'none';
+                isLoading = false;
+                clearInterval(animationInterval);
             }, 300);
         });
 
-        // Fallback: Hide loading screen if it's still visible after 3 seconds
+        // Listen for resize events
+        window.addEventListener('resize', handleResize);
+
+        // Fallback: Hide loading screen if it's still visible after 5 seconds
         setTimeout(() => {
             if (loadingOverlay && !loadingOverlay.classList.contains('hidden')) {
                 loadingOverlay.classList.add('hidden');
                 setTimeout(() => {
                     loadingOverlay.style.display = 'none';
+                    isLoading = false;
+                    clearInterval(animationInterval);
                 }, 300);
             }
-        }, 3000);
+        }, 5000);
 
         // Navbar scroll effect
         window.addEventListener('scroll', function() {

@@ -942,51 +942,85 @@ def compare_properties():
 def loan_calculator():
     if request.method == 'POST':
         try:
+            # Get and validate form inputs with fallbacks for optional fields
             amount = float(request.form['amount'])
-            tenure = int(request.form['tenure'])  # Get tenure in years
+            tenure = int(request.form['tenure'])
             rate = float(request.form['rate'])
-            down_payment = float(request.form.get('down_payment', 0))
+            down_payment = float(request.form.get('down_payment') or 0)
+            
+            # Validate inputs
+            if amount <= 0 or tenure <= 0 or rate <= 0 or down_payment < 0 or down_payment >= amount:
+                raise ValueError("Invalid input parameters")
             
             # Calculate loan amount after down payment
             principal = amount - down_payment
             
-            # Convert tenure to months for calculations
+            # Convert annual rate to monthly and years to months (once)
+            monthly_rate = rate / 1200  # Divide by 12 and 100 in one go
             tenure_months = tenure * 12
             
-            # Monthly calculations
-            monthly_rate = rate / 12 / 100
-            emi = (principal * monthly_rate * (1 + monthly_rate)**tenure_months) / ((1 + monthly_rate)**tenure_months - 1)
+            # Calculate EMI using the formula efficiently
+            rate_factor = (1 + monthly_rate) ** tenure_months
+            emi = principal * monthly_rate * rate_factor / (rate_factor - 1)
+            
+            # Calculate derived values
             total_payment = emi * tenure_months
             total_interest = total_payment - principal
-
-            # Calculate percentages
-            interest_percent = (total_interest / total_payment) * 100
-            principal_percent = (principal / total_payment) * 100
             
-            # Calculate yearly amortization
+            # Calculate percentages (rounded to 1 decimal place)
+            interest_percent = round((total_interest / total_payment) * 100, 1)
+            principal_percent = round((principal / total_payment) * 100, 1)
+            
+            # Calculate yearly amortization more efficiently
             amortization = []
-            balance = principal
-            yearly_payment = emi * 12
+            remaining_balance = principal
             
             for year in range(1, tenure + 1):
-                yearly_interest = 0
-                yearly_principal = 0
+                # Pre-compute values for the year
+                start_balance = remaining_balance
                 
-                for _ in range(12):
-                    monthly_interest = balance * monthly_rate
-                    monthly_principal = emi - monthly_interest
-                    
-                    yearly_interest += monthly_interest
-                    yearly_principal += monthly_principal
-                    balance -= monthly_principal
+                # Use a more efficient algorithm that avoids the inner loop
+                # by calculating the year's values directly
+                year_start_factor = (1 + monthly_rate) ** ((year - 1) * 12)
+                year_end_factor = (1 + monthly_rate) ** (year * 12)
+                
+                yearly_payment = emi * 12
+                yearly_interest = principal * monthly_rate * (year_start_factor * ((1 + monthly_rate) ** 12 - 1) / (monthly_rate))
+                
+                # Ensure we don't go below zero due to rounding
+                if year == tenure:
+                    # Last year - ensure numbers match exactly
+                    yearly_principal = remaining_balance
+                    remaining_balance = 0
+                else:
+                    # Calculate principal paid this year
+                    yearly_principal = yearly_payment - yearly_interest
+                    remaining_balance = start_balance - yearly_principal
                 
                 amortization.append({
                     'year': year,
                     'principal_paid': yearly_principal,
                     'interest_paid': yearly_interest,
                     'total_payment': yearly_principal + yearly_interest,
-                    'balance': max(0, balance)  # Ensure we don't show negative balance due to rounding
+                    'balance': max(0, remaining_balance)
                 })
+
+            # Cache the result in session for potential reuse
+            session['last_loan_calculation'] = {
+                'inputs': {
+                    'amount': amount,
+                    'tenure': tenure,
+                    'rate': rate,
+                    'down_payment': down_payment
+                },
+                'results': {
+                    'emi': emi,
+                    'total_payment': total_payment,
+                    'total_interest': total_interest,
+                    'interest_percent': interest_percent,
+                    'principal_percent': principal_percent
+                }
+            }
 
             return render_template('tools/loan_calculator.html', 
                                 form_data={
@@ -1002,9 +1036,28 @@ def loan_calculator():
                                 principal_percent=principal_percent,
                                 amortization=amortization,
                                 calculated=True)
-        except (ValueError, ZeroDivisionError) as e:
-            flash('Please enter valid numeric values for all fields', 'error')
+        except (ValueError, ZeroDivisionError, KeyError) as e:
+            flash(f'Please enter valid numeric values for all fields: {str(e)}', 'error')
             return render_template('tools/loan_calculator.html')
+    
+    # Check if we have property_id and amount from a redirect
+    property_id = request.args.get('property_id')
+    amount = request.args.get('amount')
+    
+    if property_id and amount:
+        # Pre-populate form for a specific property
+        try:
+            property_amount = float(amount)
+            default_down_payment = property_amount * 0.2  # 20% down payment
+            return render_template('tools/loan_calculator.html', 
+                                form_data={
+                                    'amount': property_amount,
+                                    'down_payment': default_down_payment,
+                                    'tenure': 20,  # Default 20 years
+                                    'rate': 8.5    # Default 8.5% interest
+                                })
+        except ValueError:
+            pass
     
     return render_template('tools/loan_calculator.html')
 

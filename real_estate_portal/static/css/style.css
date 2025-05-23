@@ -220,24 +220,49 @@ footer .social-links a:hover {
     100% { transform: rotate(360deg); }
 }
 
-/* Loading Overlay */
+/* Loading Animation */
 #loading-overlay {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
-    background: white;
-    z-index: 9999;
+    width: 100vw;
+    height: 100vh;
+    background-color: #fefcf9;
     display: flex;
     justify-content: center;
     align-items: center;
+    z-index: 9999;
     transition: opacity 0.3s ease-out;
 }
 
 #loading-overlay.hidden {
     opacity: 0;
     pointer-events: none;
+}
+
+.loading-container {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+.dot {
+    width: 100%;
+    height: 100%;
+    background-color: #fbecd5;
+    border-radius: 50%;
+    transition: background-color 0.5s ease;
+}
+
+.dot.highlight {
+    background-color: #f9980c;
+}
+
+.dot.medium {
+    background-color: #fabb65;
 }
 
 /* Responsive Design */
