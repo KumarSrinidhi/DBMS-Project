@@ -1,181 +1,874 @@
 {% extends "base.html" %}
 
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
 {% block styles %}
 <style>
+:root {
+    --primary-color: #2563eb;
+    --secondary-color: #3b82f6;
+    --accent-color: #1d4ed8;
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+    --light-bg: #f8fafc;
+    --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --hover-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.page-header {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    padding: 3rem 0;
+    margin-bottom: 2rem;
+    border-radius: 0 0 2rem 2rem;
+}
+
+.page-header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.page-header p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+}
+
 .loan-calculator {
-    border-radius: 15px;
-    box-shadow: var(--shadow);
+    border-radius: 24px;
+    box-shadow: var(--card-shadow);
     background: white;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.loan-calculator:hover {
+    box-shadow: var(--hover-shadow);
+    transform: translateY(-2px);
+}
+
+.calculator-header {
+    background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+    padding: 2rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.calculator-header h3 {
+    color: var(--primary-color);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.form-section {
+    padding: 2rem;
 }
 
 .loan-summary {
-    background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
     color: white;
-    border-radius: 10px;
-    padding: 2rem;
-    margin: 1rem 0;
+    border-radius: 20px;
+    padding: 2.5rem;
+    margin: 2rem 0;
+    box-shadow: var(--hover-shadow);
+    position: relative;
+    overflow: hidden;
+}
+
+.loan-summary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+    opacity: 0.3;
+}
+
+.loan-summary > * {
+    position: relative;
+    z-index: 1;
+}
+
+.loan-summary h2 {
+    font-size: 3rem;
+    font-weight: 800;
+    margin-bottom: 0;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .detail-card {
-    border-radius: 10px;
-    border: 1px solid #eee;
-    padding: 1.5rem;
-    margin-bottom: 1rem;
-    transition: var(--transition);
+    border-radius: 16px;
+    border: 2px solid #e2e8f0;
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    transition: all 0.3s ease;
+    background: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.detail-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(to bottom, var(--primary-color), var(--secondary-color));
+    transform: scaleY(0);
+    transition: transform 0.3s ease;
 }
 
 .detail-card:hover {
     border-color: var(--primary-color);
-    transform: translateY(-2px);
+    transform: translateY(-4px);
+    box-shadow: var(--hover-shadow);
+}
+
+.detail-card:hover::before {
+    transform: scaleY(1);
+}
+
+.detail-card h6 {
+    color: #64748b;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 1rem;
+}
+
+.detail-card .h4 {
+    color: var(--primary-color);
+    font-weight: 700;
+    font-size: 1.75rem;
 }
 
 .chart-container {
     position: relative;
+    height: 350px;
+    margin: 2.5rem 0;
+    border-radius: 16px;
+    overflow: hidden;
+    background: white;
+    box-shadow: var(--card-shadow);
+    padding: 1.5rem;
+}
+
+.form-control {
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background: white;
+    position: relative;
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1), 0 4px 12px rgba(37, 99, 235, 0.15);
+    transform: translateY(-2px);
+}
+
+.form-control::placeholder {
+    color: #94a3b8;
+    font-weight: 400;
+}
+
+.input-group-text {
+    background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    font-weight: 600;
+    color: var(--primary-color);
+    padding: 1rem 1.25rem;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    border: none;
+    padding: 1rem 2.5rem;
+    border-radius: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.39);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px 0 rgba(37, 99, 235, 0.5);
+    background: linear-gradient(135deg, var(--accent-color), var(--primary-color));
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-ripple {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.btn-ripple::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn-primary:active .btn-ripple::before {
+    width: 300px;
     height: 300px;
+}
+
+.helper-text {
+    color: #64748b;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.helper-text::before {
+    content: '💡';
+    font-size: 0.75rem;
+}
+
+.form-group {
+    position: relative;
+    margin-bottom: 2rem;
+}
+
+.form-group::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+    transition: all 0.3s ease;
+    transform: translateX(-50%);
+}
+
+.form-group:focus-within::before {
+    width: 100%;
+}
+
+.form-label {
+    color: #374151;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 0.5rem;
+}
+
+.stat-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+.results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
     margin: 2rem 0;
+}
+
+.breakdown-card {
+    background: white;
+    border-radius: 16px;
+    padding: 2rem;
+    text-align: center;
+    border: 2px solid #e2e8f0;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.breakdown-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+}
+
+.breakdown-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    transition: left 0.5s;
+}
+
+.breakdown-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--hover-shadow);
+    border-color: var(--primary-color);
+}
+
+.breakdown-card:hover::before {
+    transform: scaleY(1);
+}
+
+.breakdown-card:hover::after {
+    left: 100%;
+}
+
+.breakdown-card i {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+    display: block;
+    animation: float 3s ease-in-out infinite;
+    animation-delay: calc(var(--delay, 0) * 0.2s);
+}
+
+.breakdown-card h5 {
+    color: #374151;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.breakdown-card p {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+}
+
+.tips-section {
+    background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+    border: 2px solid #bae6fd;
+    border-radius: 16px;
+    padding: 2rem;
+    margin: 2rem 0;
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.tips-section h5 {
+    color: var(--primary-color);
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+}
+
+.tips-section ul li {
+    color: #475569;
+    margin-bottom: 0.75rem;
+    padding-left: 1rem;
+    position: relative;
+}
+
+.tips-section ul li::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: var(--success-color);
+    font-weight: bold;
+}
+
+.table-responsive {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--card-shadow);
+    margin: 1.5rem 0;
+}
+
+.table {
+    margin-bottom: 0;
+}
+
+.table thead th {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    font-weight: 600;
+    border: none;
+    padding: 1rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.table thead th::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    animation: shimmer 2s infinite;
+}
+
+.table tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+.table tbody td {
+    padding: 1rem;
+    vertical-align: middle;
+    border-color: #e2e8f0;
+}
+
+.info-section {
+    background: white;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: var(--card-shadow);
+    margin: 2rem 0;
+}
+
+.info-section h5 {
+    color: var(--primary-color);
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+}
+
+.formula-box {
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    font-family: 'Courier New', monospace;
+    text-align: center;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+@media (max-width: 768px) {
+    .page-header {
+        padding: 2rem 0;
+    }
+    
+    .page-header h1 {
+        font-size: 2rem;
+    }
+    
+    .loan-summary {
+        padding: 1.5rem;
+    }
+    
+    .loan-summary h2 {
+        font-size: 2rem;
+    }
+    
+    .form-section {
+        padding: 1.5rem;
+    }
+    
+    .calculator-header {
+        padding: 1.5rem;
+    }
+    
+    .results-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .breakdown-card {
+        padding: 1.5rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .loan-summary .col-md-6 {
+        border-right: none !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        padding-bottom: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .loan-summary .col-md-6:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+}
+
+/* Loading animation */
+.loading {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Accessibility improvements */
+.form-control:focus,
+.btn:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -1000px 0;
+    }
+    100% {
+        background-position: 1000px 0;
+    }
+}
+
+/* Staggered animation for breakdown cards */
+.breakdown-card {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInUp 0.6s ease-out forwards;
+}
+
+.breakdown-card.animate-in {
+    opacity: 1;
+    transform: translateY(0);
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container py-5">
+<div class="page-header">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 mx-auto text-center">
+                <h1 class="mb-3">
+                    <i class="fas fa-calculator me-3"></i>
+                    Home Loan EMI Calculator
+                </h1>
+                <p class="mb-0">Plan your home loan EMIs and understand your repayment schedule with our advanced calculator</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container pb-5">
     <div class="row">
-        <div class="col-lg-8 mx-auto">
-            <div class="card loan-calculator">
-                <div class="card-body">
-                    <h3 class="card-title mb-4">Home Loan Calculator</h3>
-                    
+        <div class="col-lg-10 mx-auto">
+            <div class="loan-calculator">
+                <div class="calculator-header">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-primary text-white rounded-circle p-3 me-3">
+                            <i class="fas fa-calculator fs-4"></i>
+                        </div>
+                        <div>
+                            <h3 class="mb-1">Calculate Your EMI</h3>
+                            <p class="text-muted mb-0">Enter your loan details below to get instant calculations</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
                     <!-- Loan Calculator Form -->
                     <form id="loanForm" method="POST">
                         <div class="row g-4">
                             <div class="col-md-6">
-                                <label class="form-label">Loan Amount (₹)</label>
-                                <input type="number" class="form-control" id="loanAmount" name="amount"
-                                       placeholder="Enter loan amount" required min="100000">
+                                <div class="form-group">
+                                    <label class="form-label">
+                                        <i class="fas fa-rupee-sign text-primary me-2"></i>
+                                        Loan Amount
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">₹</span>
+                                        <input type="number" class="form-control" id="loanAmount" name="amount"
+                                               placeholder="e.g., 50,00,000" required min="100000" 
+                                               value="{{ form_data.amount if form_data else '' }}">
+                                    </div>
+                                    <div class="helper-text">Minimum loan amount: ₹1,00,000</div>
+                                </div>
                             </div>
                             
                             <div class="col-md-6">
-                                <label class="form-label">Interest Rate (% per annum)</label>
-                                <input type="number" class="form-control" id="interestRate" name="rate"
-                                       placeholder="Enter interest rate" required step="0.01" min="1" max="30">
+                                <div class="form-group">
+                                    <label class="form-label">
+                                        <i class="fas fa-percentage text-primary me-2"></i>
+                                        Interest Rate
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="interestRate" name="rate"
+                                               placeholder="e.g., 8.5" required step="0.01" min="1" max="30"
+                                               value="{{ form_data.rate if form_data else '' }}">
+                                        <span class="input-group-text">% p.a.</span>
+                                    </div>
+                                    <div class="helper-text">Current rates typically range from 7% to 12%</div>
+                                </div>
                             </div>
 
                             <div class="col-md-6">
-                                <label class="form-label">Loan Term (years)</label>
-                                <input type="number" class="form-control" id="loanTerm" name="tenure"
-                                       placeholder="Enter loan term" required min="1" max="30">
+                                <div class="form-group">
+                                    <label class="form-label">
+                                        <i class="fas fa-calendar-alt text-primary me-2"></i>
+                                        Loan Term
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="loanTerm" name="tenure"
+                                               placeholder="e.g., 20" required min="1" max="30"
+                                               value="{{ form_data.tenure if form_data else '' }}">
+                                        <span class="input-group-text">Years</span>
+                                    </div>
+                                    <div class="helper-text">Maximum loan term: 30 years</div>
+                                </div>
                             </div>
 
                             <div class="col-md-6">
-                                <label class="form-label">Down Payment (₹)</label>
-                                <input type="number" class="form-control" id="downPayment" name="down_payment"
-                                       placeholder="Enter down payment amount" min="0">
+                                <div class="form-group">
+                                    <label class="form-label">
+                                        <i class="fas fa-hand-holding-usd text-primary me-2"></i>
+                                        Down Payment
+                                        <span class="badge bg-secondary ms-2">Optional</span>
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">₹</span>
+                                        <input type="number" class="form-control" id="downPayment" name="down_payment"
+                                               placeholder="e.g., 10,00,000" min="0"
+                                               value="{{ form_data.down_payment if form_data else '' }}">
+                                    </div>
+                                    <div class="helper-text">Recommended: 20% of property value</div>
+                                </div>
                             </div>
 
-                            <div class="col-12">
-                                <button type="submit" class="btn btn-primary w-100">Calculate EMI</button>
+                            <div class="col-12 mt-4">                                <button type="submit" class="btn btn-primary w-100 py-3 position-relative overflow-hidden">
+                                    <span class="d-flex align-items-center justify-content-center">
+                                        <i class="fas fa-calculator me-2"></i>
+                                        <span class="button-text">Calculate EMI</span>
+                                        <span class="loading d-none"></span>
+                                    </span>
+                                    <div class="btn-ripple"></div>
+                                </button>
                             </div>
                         </div>
                     </form>
 
                     {% if emi %}
                     <!-- Results Section -->
-                    <div id="loanResults">
-                        <div class="loan-summary mt-4">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <h4 class="mb-3">Monthly EMI</h4>
-                                    <h2 class="mb-3">₹{{ "%.2f"|format(emi) }}</h2>
+                    <div id="loanResults" class="mt-5">
+                        <div class="loan-summary">
+                            <div class="row align-items-center">
+                                <div class="col-md-6 border-end border-white">
+                                    <span class="stat-label d-block mb-2">
+                                        <i class="fas fa-money-bill-wave me-2"></i>
+                                        Monthly EMI
+                                    </span>
+                                    <h2 class="mb-2">₹{{ "{:,.0f}".format(emi) }}</h2>
+                                    <p class="mb-0 opacity-75">
+                                        <i class="fas fa-calendar me-1"></i>
+                                        Due on the 1st of every month
+                                    </p>
                                 </div>
                                 <div class="col-md-6">
-                                    <div class="row">
+                                    <div class="row g-3">
                                         <div class="col-6">
-                                            <small>Principal Amount</small>
-                                            <div>₹{{ "%.2f"|format(form_data.amount|float) }}</div>
+                                            <span class="stat-label">
+                                                <i class="fas fa-coins me-1"></i>
+                                                Principal Amount
+                                            </span>
+                                            <div class="stat-value">₹{{ "{:,.0f}".format((form_data.amount|float) - (form_data.down_payment|float if form_data.down_payment else 0)) }}</div>
                                         </div>
                                         <div class="col-6">
-                                            <small>Total Interest</small>
-                                            <div>₹{{ "%.2f"|format(total_interest) }}</div>
+                                            <span class="stat-label">
+                                                <i class="fas fa-chart-line me-1"></i>
+                                                Total Interest
+                                            </span>
+                                            <div class="stat-value">₹{{ "{:,.0f}".format(total_interest) }}</div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Loan Details -->
-                        <div class="mt-4">
-                            <h5>Loan Breakup</h5>
-                            <div class="row g-4">
-                                <div class="col-md-4">
-                                    <div class="detail-card text-center">
-                                        <h6>Total Payment</h6>
-                                        <div class="h4 mb-0">₹{{ "%.2f"|format(total_payment) }}</div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="detail-card text-center">
-                                        <h6>Interest Component</h6>
-                                        <div class="h4 mb-0">{{ "%.1f"|format(interest_percent) }}%</div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="detail-card text-center">
-                                        <h6>Principal Component</h6>
-                                        <div class="h4 mb-0">{{ "%.1f"|format(principal_percent) }}%</div>
-                                    </div>
-                                </div>
+                        <!-- Loan Breakup Cards -->
+                        <div class="results-grid">
+                            <div class="breakdown-card">
+                                <i class="fas fa-money-check-alt"></i>
+                                <h5>Total Payment</h5>
+                                <p>₹{{ "{:,.0f}".format(total_payment) }}</p>
+                                <small class="text-muted">Principal + Interest</small>
+                            </div>
+                            <div class="breakdown-card">
+                                <i class="fas fa-chart-pie"></i>
+                                <h5>Interest Component</h5>
+                                <p>{{ "%.1f"|format(interest_percent) }}%</p>
+                                <small class="text-muted">of total payment</small>
+                            </div>
+                            <div class="breakdown-card">
+                                <i class="fas fa-university"></i>
+                                <h5>Principal Component</h5>
+                                <p>{{ "%.1f"|format(principal_percent) }}%</p>
+                                <small class="text-muted">of total payment</small>
                             </div>
                         </div>
 
-                        <!-- Chart -->
+                        <!-- Interactive Chart -->
                         <div class="chart-container">
-                            <canvas id="loanChart"></canvas>
+                            <canvas id="loanChart" aria-label="Loan breakdown chart showing principal vs interest"></canvas>
+                        </div>
+
+                        <!-- Additional Details -->
+                        <div class="results-grid">
+                            <div class="breakdown-card">
+                                <i class="fas fa-calendar-alt"></i>
+                                <h5>Total Payments</h5>
+                                <p>{{ form_data.tenure|int * 12 }} months</p>
+                                <small class="text-muted">{{ form_data.tenure|int }} years</small>
+                            </div>
+                            <div class="breakdown-card">
+                                <i class="fas fa-percentage"></i>
+                                <h5>Interest Rate</h5>
+                                <p>{{ form_data.rate }}% p.a.</p>
+                                <small class="text-muted">Fixed Rate</small>
+                            </div>
+                            <div class="breakdown-card">
+                                <i class="fas fa-home"></i>
+                                <h5>Property Value</h5>
+                                <p>₹{{ "{:,.0f}".format(form_data.amount|float) }}</p>
+                                <small class="text-muted">Total investment</small>
+                            </div>
                         </div>
 
                         <!-- Amortization Schedule -->
+                        {% if amortization %}
                         <div class="mt-4">
-                            <h5>Amortization Schedule</h5>
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="fas fa-table fs-4 text-primary me-3"></i>
+                                <h5 class="mb-0">Yearly Amortization Schedule</h5>
+                            </div>
                             <div class="table-responsive">
-                                <table class="table table-striped" id="amortizationTable">
+                                <table class="table table-hover" id="amortizationTable">
                                     <thead>
                                         <tr>
-                                            <th>Year</th>
-                                            <th>Principal Paid</th>
-                                            <th>Interest Paid</th>
-                                            <th>Total Payment</th>
-                                            <th>Remaining Balance</th>
+                                            <th><i class="fas fa-calendar me-1"></i>Year</th>
+                                            <th><i class="fas fa-coins me-1"></i>Principal Paid</th>
+                                            <th><i class="fas fa-chart-line me-1"></i>Interest Paid</th>
+                                            <th><i class="fas fa-money-check me-1"></i>Total Payment</th>
+                                            <th><i class="fas fa-balance-scale me-1"></i>Remaining Balance</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {% for year in amortization %}
                                         <tr>
-                                            <td>{{ year.year }}</td>
-                                            <td>₹{{ "%.2f"|format(year.principal_paid) }}</td>
-                                            <td>₹{{ "%.2f"|format(year.interest_paid) }}</td>
-                                            <td>₹{{ "%.2f"|format(year.total_payment) }}</td>
-                                            <td>₹{{ "%.2f"|format(year.balance) }}</td>
+                                            <td><strong>{{ year.year }}</strong></td>
+                                            <td>₹{{ "{:,.0f}".format(year.principal_paid) }}</td>
+                                            <td>₹{{ "{:,.0f}".format(year.interest_paid) }}</td>
+                                            <td>₹{{ "{:,.0f}".format(year.total_payment) }}</td>
+                                            <td>₹{{ "{:,.0f}".format(year.balance) }}</td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
                                 </table>
                             </div>
                         </div>
+                        {% endif %}
                     </div>
                     {% endif %}
+                    
+                    <!-- Helpful Tips -->
+                    <div class="tips-section mt-4">
+                        <h5>
+                            <i class="fas fa-lightbulb text-warning me-2"></i>
+                            Smart Tips to Optimize Your Home Loan
+                        </h5>
+                        <ul class="mb-0">
+                            <li>Make a larger down payment to reduce the principal amount and save on interest</li>
+                            <li>Choose an optimal tenure - shorter terms mean higher EMIs but less total interest</li>
+                            <li>Compare interest rates from different banks and financial institutions</li>
+                            <li>Maintain a good credit score (750+) for better interest rates</li>
+                            <li>Consider making prepayments to reduce the principal balance</li>
+                            <li>Factor in processing fees and other charges when calculating total cost</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
 
-            <!-- Additional Information -->
-            <div class="mt-4">
-                <h5>Understanding Home Loan EMI</h5>
-                <p>EMI (Equated Monthly Installment) is calculated using the following formula:</p>
-                <p><strong>EMI = P × r × (1 + r)^n / ((1 + r)^n - 1)</strong></p>
-                <p>Where:</p>
-                <ul>
-                    <li>P = Principal loan amount</li>
-                    <li>r = Interest rate per month [Annual rate ÷ 12 ÷ 100]</li>
-                    <li>n = Total number of months [Years × 12]</li>
-                </ul>
+            <!-- EMI Formula Information -->
+            <div class="info-section mt-4">
+                <div class="d-flex align-items-center mb-3">
+                    <i class="fas fa-info-circle fs-4 text-primary me-3"></i>
+                    <h5 class="mb-0">Understanding Home Loan EMI Calculation</h5>
+                </div>
+                <p class="mb-3">EMI (Equated Monthly Installment) is calculated using a standardized mathematical formula that considers the principal amount, interest rate, and loan tenure.</p>
+                
+                <div class="formula-box">
+                    <strong>EMI = P × r × (1 + r)^n ÷ ((1 + r)^n - 1)</strong>
+                </div>
+                
+                <div class="row g-3 mt-3">
+                    <div class="col-md-3">
+                        <strong>P</strong> = Principal loan amount
+                    </div>
+                    <div class="col-md-3">
+                        <strong>r</strong> = Monthly interest rate
+                    </div>
+                    <div class="col-md-3">
+                        <strong>n</strong> = Total number of months
+                    </div>
+                    <div class="col-md-3">
+                        <strong>EMI</strong> = Monthly payment
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -192,26 +885,250 @@ document.addEventListener('DOMContentLoaded', function() {
     new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['Principal', 'Interest'],
+            labels: ['Principal Amount', 'Interest Amount'],
             datasets: [{
-                data: [{{ form_data.amount|float }}, {{ total_interest|float }}],
+                data: [{{ (form_data.amount|float) - (form_data.down_payment|float if form_data.down_payment else 0) }}, {{ total_interest|float }}],
                 backgroundColor: [
-                    'rgba(54, 162, 235, 0.8)',
-                    'rgba(255, 99, 132, 0.8)'
-                ]
+                    '#10b981',
+                    '#ef4444'
+                ],
+                borderWidth: 3,
+                borderColor: '#ffffff',
+                hoverBorderWidth: 5,
+                hoverBorderColor: '#ffffff'
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            cutout: '60%',
             plugins: {
                 legend: {
-                    position: 'bottom'
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true,
+                        font: {
+                            size: 14,
+                            weight: '600'
+                        }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#ffffff',
+                    bodyColor: '#ffffff',
+                    borderColor: '#ffffff',
+                    borderWidth: 1,
+                    cornerRadius: 8,
+                    displayColors: false,
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = Math.round((value / total) * 100);
+                            return `${label}: ₹${value.toLocaleString('en-IN')} (${percentage}%)`;
+                        }
+                    }
                 }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
+            animation: {
+                animateRotate: true,
+                animateScale: true,
+                duration: 1500,
+                easing: 'easeInOutQuart'
             }
         }
     });
+
+    // Add form loading animation
+    const form = document.getElementById('loanForm');
+    const submitButton = form.querySelector('button[type="submit"]');
+    const buttonText = submitButton.querySelector('.button-text');
+    const loadingSpinner = submitButton.querySelector('.loading');
+
+    form.addEventListener('submit', function() {
+        buttonText.style.display = 'none';
+        loadingSpinner.classList.remove('d-none');
+        submitButton.disabled = true;
+    });
+
+    // Format number inputs on blur
+    const numberInputs = form.querySelectorAll('input[type="number"]');
+    numberInputs.forEach(input => {
+        input.addEventListener('blur', function() {
+            if (this.value && this.name !== 'rate' && this.name !== 'tenure') {
+                const value = parseFloat(this.value);
+                if (!isNaN(value)) {
+                    this.value = Math.round(value);
+                }
+            }
+        });
+
+        // Add real-time validation feedback
+        input.addEventListener('input', function() {
+            this.classList.remove('is-invalid', 'is-valid');
+            if (this.value) {
+                const value = parseFloat(this.value);
+                const min = parseFloat(this.min) || 0;
+                const max = parseFloat(this.max) || Infinity;
+                
+                if (isNaN(value) || value < min || value > max) {
+                    this.classList.add('is-invalid');
+                } else {
+                    this.classList.add('is-valid');
+                }
+            }
+        });
+    });
+
+    // Smooth scroll to results when calculated
+    const resultsSection = document.getElementById('loanResults');
+    if (resultsSection) {
+        resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
     {% endif %}
+
+    // Add input formatting for better UX
+    const amountInput = document.getElementById('loanAmount');
+    const downPaymentInput = document.getElementById('downPayment');
+    
+    [amountInput, downPaymentInput].forEach(input => {
+        if (input) {
+            input.addEventListener('input', function(e) {
+                // Remove non-numeric characters except decimal point
+                let value = e.target.value.replace(/[^\d.]/g, '');
+                
+                // Ensure only one decimal point
+                const parts = value.split('.');
+                if (parts.length > 2) {
+                    value = parts[0] + '.' + parts.slice(1).join('');
+                }
+                
+                e.target.value = value;
+            });
+        }
+    });
+
+    // Add helpful hints based on input values
+    const interestRateInput = document.getElementById('interestRate');
+    const loanTermInput = document.getElementById('loanTerm');
+    
+    if (interestRateInput) {
+        interestRateInput.addEventListener('input', function() {
+            const rate = parseFloat(this.value);
+            const helperText = this.parentNode.nextElementSibling;
+            
+            if (rate < 7) {
+                helperText.innerHTML = '💡 Excellent rate! This is below market average.';
+                helperText.style.color = '#10b981';
+            } else if (rate <= 9) {
+                helperText.innerHTML = '💡 Good rate within normal range.';
+                helperText.style.color = '#3b82f6';
+            } else if (rate <= 12) {
+                helperText.innerHTML = '💡 Consider negotiating for a better rate.';
+                helperText.style.color = '#f59e0b';
+            } else {
+                helperText.innerHTML = '⚠️ This rate seems high. Shop around for better offers.';
+                helperText.style.color = '#ef4444';
+            }
+        });
+    }
+
+    if (loanTermInput) {
+        loanTermInput.addEventListener('input', function() {
+            const term = parseInt(this.value);
+            const helperText = this.parentNode.nextElementSibling;
+            
+            if (term <= 15) {
+                helperText.innerHTML = '💡 Shorter term = Higher EMI but less total interest.';
+                helperText.style.color = '#10b981';
+            } else if (term <= 25) {
+                helperText.innerHTML = '💡 Balanced choice between EMI and total interest.';
+                helperText.style.color = '#3b82f6';
+            } else {
+                helperText.innerHTML = '💡 Longer term = Lower EMI but more total interest.';
+                helperText.style.color = '#f59e0b';
+            }
+        });
+    }
+
+    // Add staggered animation for breakdown cards
+    const breakdownCards = document.querySelectorAll('.breakdown-card');
+    breakdownCards.forEach((card, index) => {
+        card.style.setProperty('--delay', index);
+        card.style.animationDelay = `${index * 0.1}s`;
+        card.classList.add('animate-in');
+    });
+
+    // Add number formatting with thousand separators
+    function formatNumber(num) {
+        return new Intl.NumberFormat('en-IN').format(num);
+    }
+
+    // Enhanced form validation with visual feedback
+    function validateForm() {
+        const form = document.getElementById('loanForm');
+        const inputs = form.querySelectorAll('input[required]');
+        let isValid = true;
+
+        inputs.forEach(input => {
+            const value = parseFloat(input.value);
+            const min = parseFloat(input.min) || 0;
+            const max = parseFloat(input.max) || Infinity;
+
+            if (!input.value || isNaN(value) || value < min || value > max) {
+                input.classList.add('is-invalid');
+                input.classList.remove('is-valid');
+                isValid = false;
+            } else {
+                input.classList.add('is-valid');
+                input.classList.remove('is-invalid');
+            }
+        });
+
+        return isValid;
+    }
+
+    // Add real-time EMI preview (optional enhancement)
+    function calculatePreviewEMI() {
+        const amount = parseFloat(document.getElementById('loanAmount').value) || 0;
+        const downPayment = parseFloat(document.getElementById('downPayment').value) || 0;
+        const rate = parseFloat(document.getElementById('interestRate').value) || 0;
+        const tenure = parseFloat(document.getElementById('loanTerm').value) || 0;
+
+        if (amount && rate && tenure && amount > downPayment) {
+            const principal = amount - downPayment;
+            const monthlyRate = rate / (12 * 100);
+            const numPayments = tenure * 12;
+            
+            const emi = (principal * monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / 
+                       (Math.pow(1 + monthlyRate, numPayments) - 1);
+            
+            // Show preview in submit button (optional)
+            const submitBtn = document.querySelector('button[type="submit"]');
+            const buttonText = submitBtn.querySelector('.button-text');
+            
+            if (!isNaN(emi) && emi > 0) {
+                buttonText.innerHTML = `Calculate EMI (~₹${formatNumber(Math.round(emi))})`;
+            } else {
+                buttonText.innerHTML = 'Calculate EMI';
+            }
+        }
+    }
+
+    // Add input listeners for real-time preview
+    ['loanAmount', 'downPayment', 'interestRate', 'loanTerm'].forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.addEventListener('input', calculatePreviewEMI);
+        }
+    });
 });
 </script>
 {% endblock %}
