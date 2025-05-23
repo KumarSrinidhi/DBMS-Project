@@ -1276,16 +1276,12 @@ def admin_delete_property(property_id):
     property = Property.query.get_or_404(property_id)
     
     try:
-        # Use a transaction context manager pattern
-        session = db.session
-        session.begin()
-        
         # 1. Delete from Favorites first (no dependencies)
         Favorites.query.filter_by(propertyId=property_id).delete()
         
         # 2. Delete Listing records (if table exists)
         try:
-            session.execute(text("DELETE FROM Listing WHERE propertyId = :pid"), {"pid": property_id})
+            db.session.execute(text("DELETE FROM Listing WHERE propertyId = :pid"), {"pid": property_id})
         except Exception as e:
             pass
         
@@ -1299,7 +1295,7 @@ def admin_delete_property(property_id):
                 file_path = os.path.join(app.root_path, image.imageURL.lstrip('/'))
                 if os.path.exists(file_path):
                     os.remove(file_path)
-                session.delete(image)
+                db.session.delete(image)
             except Exception as e:
                 image_deletion_errors.append(str(e))
         
@@ -1310,7 +1306,7 @@ def admin_delete_property(property_id):
             "Valuation", "LegalCase", "ResidentialProperty", "CommercialProperty"
         ]:
             try:
-                session.execute(
+                db.session.execute(
                     text(f"DELETE FROM {table_name} WHERE propertyId = :pid"),
                     {"pid": property_id}
                 )
@@ -1318,10 +1314,10 @@ def admin_delete_property(property_id):
                 pass
         
         # Finally delete the property itself
-        session.delete(property)
+        db.session.delete(property)
         
         # Commit all changes
-        session.commit()
+        db.session.commit()
         
         if image_deletion_errors:
             flash(f'Property deleted with warnings: Some image files could not be deleted.', 'warning')

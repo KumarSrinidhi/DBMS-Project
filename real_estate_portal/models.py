@@ -29,7 +29,7 @@ class UserRole(db.Model):
 class User(UserMixin, db.Model):
     __tablename__ = 'Users'
     userId = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(50), unique=True, nullable=False)
+    username = db.Column(db.String(50), unique=True, nullable=False)    
     password = db.Column(db.String(255), nullable=False)
     email = db.Column(db.String(100), unique=True)
     mobile = db.Column(db.String(10), unique=True)
@@ -45,7 +45,7 @@ class User(UserMixin, db.Model):
         return str(self.userId)
     
     def set_password(self, password):
-        self.password = generate_password_hash(password)
+        self.password = generate_password_hash(password, method='pbkdf2:sha256')
     
     def check_password(self, password):
         return check_password_hash(self.password, password)
