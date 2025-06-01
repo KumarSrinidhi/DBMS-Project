@@ -40,9 +40,8 @@
                     </div>
                 </div>
 
-                <div class="form-section">
-                    <!-- Loan Calculator Form -->
-                    <form id="loanForm" method="POST">
+                <div class="form-section">                    <!-- Loan Calculator Form -->
+                    <form id="loanForm" method="POST" novalidate>
                         <div class="row g-4">
                             <div class="col-md-6">
                                 <div class="form-group">
@@ -52,11 +51,11 @@
                                     </label>
                                     <div class="input-group">
                                         <span class="input-group-text">₹</span>
-                                        <input type="number" class="form-control" id="loanAmount" name="amount"
-                                               placeholder="e.g., 50,00,000" required min="100000" 
-                                               value="{{ form_data.amount if form_data else '' }}">
-                                    </div>
-                                    <div class="helper-text">Minimum loan amount: ₹1,00,000</div>
+                                        <input type="text" class="form-control" id="loanAmount" name="amount"
+                                               placeholder="e.g., 50,00,000" required 
+                                               value="{{ form_data.amount if form_data else '' }}"
+                                               aria-describedby="loanAmountHelp">
+                                    </div>                                    <div class="helper-text" id="loanAmountHelp">Minimum loan amount: ₹1,00,000</div>
                                 </div>
                             </div>
                             
@@ -69,15 +68,15 @@
                                     <div class="input-group">
                                         <input type="number" class="form-control" id="interestRate" name="rate"
                                                placeholder="e.g., 8.5" required step="0.01" min="1" max="30"
-                                               value="{{ form_data.rate if form_data else '' }}">
+                                               value="{{ form_data.rate if form_data else '' }}"
+                                               aria-describedby="interestRateHelp">
                                         <span class="input-group-text">% p.a.</span>
                                     </div>
-                                    <div class="helper-text">Current rates typically range from 7% to 12%</div>
+                                    <div class="helper-text" id="interestRateHelp">Current rates typically range from 7% to 12%</div>
                                 </div>
                             </div>
 
-                            <div class="col-md-6">
-                                <div class="form-group">
+                            <div class="col-md-6">                                <div class="form-group">
                                     <label class="form-label">
                                         <i class="fas fa-calendar-alt text-primary me-2"></i>
                                         Loan Term
@@ -85,10 +84,11 @@
                                     <div class="input-group">
                                         <input type="number" class="form-control" id="loanTerm" name="tenure"
                                                placeholder="e.g., 20" required min="1" max="30"
-                                               value="{{ form_data.tenure if form_data else '' }}">
+                                               value="{{ form_data.tenure if form_data else '' }}"
+                                               aria-describedby="loanTermHelp">
                                         <span class="input-group-text">Years</span>
                                     </div>
-                                    <div class="helper-text">Maximum loan term: 30 years</div>
+                                    <div class="helper-text" id="loanTermHelp">Maximum loan term: 30 years</div>
                                 </div>
                             </div>
 
@@ -98,21 +98,20 @@
                                         <i class="fas fa-hand-holding-usd text-primary me-2"></i>
                                         Down Payment
                                         <span class="badge bg-secondary ms-2">Optional</span>
-                                    </label>
-                                    <div class="input-group">
+                                    </label>                                    <div class="input-group">
                                         <span class="input-group-text">₹</span>
-                                        <input type="number" class="form-control" id="downPayment" name="down_payment"
+                                        <input type="text" class="form-control" id="downPayment" name="down_payment"
                                                placeholder="e.g., 10,00,000" min="0"
-                                               value="{{ form_data.down_payment if form_data else '' }}">
+                                               value="{{ form_data.down_payment if form_data else '' }}"
+                                               aria-describedby="downPaymentHelp">
                                     </div>
-                                    <div class="helper-text">Recommended: 20% of property value</div>
+                                    <div class="helper-text" id="downPaymentHelp">Recommended: 20% of property value</div>
                                 </div>
-                            </div>
-
-                            <div class="col-12 mt-4">                                <button type="submit" class="btn btn-primary w-100 py-3 position-relative overflow-hidden">
+                            </div>                            <div class="col-12 mt-4">
+                                <button type="submit" class="btn btn-primary w-100 py-3 position-relative overflow-hidden">
                                     <span class="d-flex align-items-center justify-content-center">
                                         <i class="fas fa-calculator me-2"></i>
-                                        <span class="button-text">Calculate EMI</span>
+                                        <span class="button-text" aria-live="polite">Calculate EMI</span>
                                         <span class="loading d-none"></span>
                                     </span>
                                     <div class="btn-ripple"></div>
@@ -138,8 +137,7 @@
                                     </p>
                                 </div>
                                 <div class="col-md-6">
-                                    <div class="row g-3">
-                                        <div class="col-6">
+                                    <div class="row g-3">                                        <div class="col-6">
                                             <span class="stat-label">
                                                 <i class="fas fa-coins me-1"></i>
                                                 Principal Amount
@@ -199,12 +197,11 @@
                                 <h5>Interest Rate</h5>
                                 <p>{{ form_data.rate }}% p.a.</p>
                                 <small class="text-muted">Fixed Rate</small>
-                            </div>
-                            <div class="breakdown-card">
+                            </div>                            <div class="breakdown-card">
                                 <i class="fas fa-home"></i>
-                                <h5>Property Value</h5>
-                                <p>₹{{ "{:,.0f}".format(form_data.amount|float) }}</p>
-                                <small class="text-muted">Total investment</small>
+                                <h5>Loan Amount</h5>
+                                <p>₹{{ "{:,.0f}".format((form_data.amount|float) - (form_data.down_payment|float if form_data.down_payment else 0)) }}</p>
+                                <small class="text-muted">Principal borrowed</small>
                             </div>
                         </div>                        <!-- Amortization Schedule -->
                         {% if amortization %}
@@ -240,11 +237,10 @@
                         </div>
                         {% endif %}
                     </div>
-                    {% endif %}
-                    
+                    {% endif %}                    
                     <!-- Helpful Tips -->
-                    <div class="tips-section mt-4">
-                        <h5>
+                    <section class="tips-section mt-4" aria-labelledby="tips-header">
+                        <h5 id="tips-header">
                             <i class="fas fa-lightbulb text-warning me-2"></i>
                             Smart Tips to Optimize Your Home Loan
                         </h5>
@@ -253,18 +249,15 @@
                             <li>Choose an optimal tenure - shorter terms mean higher EMIs but less total interest</li>
                             <li>Compare interest rates from different banks and financial institutions</li>
                             <li>Maintain a good credit score (750+) for better interest rates</li>
-                            <li>Consider making prepayments to reduce the principal balance</li>
-                            <li>Factor in processing fees and other charges when calculating total cost</li>
+                            <li>Consider making prepayments to reduce the principal balance</li>                            <li>Factor in processing fees and other charges when calculating total cost</li>
                         </ul>
-                    </div>
+                    </section>
                 </div>
-            </div>
-
-            <!-- EMI Formula Information -->
-            <div class="info-section mt-4">
+            </div>            <!-- EMI Formula Information -->
+            <section class="info-section mt-4" aria-labelledby="formula-header">
                 <div class="d-flex align-items-center mb-3">
                     <i class="fas fa-info-circle fs-4 text-primary me-3"></i>
-                    <h5 class="mb-0">Understanding Home Loan EMI Calculation</h5>
+                    <h5 class="mb-0" id="formula-header">Understanding Home Loan EMI Calculation</h5>
                 </div>
                 <p class="mb-3">EMI (Equated Monthly Installment) is calculated using a standardized mathematical formula that considers the principal amount, interest rate, and loan tenure.</p>
                 
@@ -282,11 +275,10 @@
                     <div class="col-md-3">
                         <strong>n</strong> = Total number of months
                     </div>
-                    <div class="col-md-3">
-                        <strong>EMI</strong> = Monthly payment
+                    <div class="col-md-3">                        <strong>EMI</strong> = Monthly payment
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
     </div>
 </div>

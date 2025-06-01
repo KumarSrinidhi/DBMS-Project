@@ -940,13 +940,24 @@ def compare_properties():
 
 @app.route('/tools/loan-calculator', methods=['GET', 'POST'])
 def loan_calculator():
+    def clean_numeric_input(value):
+        """Remove commas and other formatting from numeric input"""
+        if not value:
+            return 0
+        # Remove commas and any non-numeric characters except decimal point
+        cleaned = str(value).replace(',', '').replace(' ', '')
+        try:
+            return float(cleaned)
+        except ValueError:
+            raise ValueError(f"Invalid numeric value: {value}")
+    
     if request.method == 'POST':
         try:
             # Get and validate form inputs with fallbacks for optional fields
-            amount = float(request.form['amount'])
+            amount = clean_numeric_input(request.form['amount'])
             tenure = int(request.form['tenure'])
             rate = float(request.form['rate'])
-            down_payment = float(request.form.get('down_payment') or 0)
+            down_payment = clean_numeric_input(request.form.get('down_payment') or 0)
             
             # Validate inputs
             if amount <= 0 or tenure <= 0 or rate <= 0 or down_payment < 0 or down_payment >= amount:
@@ -970,32 +981,35 @@ def loan_calculator():
             # Calculate percentages (rounded to 1 decimal place)
             interest_percent = round((total_interest / total_payment) * 100, 1)
             principal_percent = round((principal / total_payment) * 100, 1)
-            
-            # Calculate yearly amortization more efficiently
+              # Calculate yearly amortization with correct formulas
             amortization = []
             remaining_balance = principal
             
             for year in range(1, tenure + 1):
-                # Pre-compute values for the year
                 start_balance = remaining_balance
-                
-                # Use a more efficient algorithm that avoids the inner loop
-                # by calculating the year's values directly
-                year_start_factor = (1 + monthly_rate) ** ((year - 1) * 12)
-                year_end_factor = (1 + monthly_rate) ** (year * 12)
-                
                 yearly_payment = emi * 12
-                yearly_interest = principal * monthly_rate * (year_start_factor * ((1 + monthly_rate) ** 12 - 1) / (monthly_rate))
+                yearly_interest = 0
+                yearly_principal = 0
                 
-                # Ensure we don't go below zero due to rounding
-                if year == tenure:
-                    # Last year - ensure numbers match exactly
-                    yearly_principal = remaining_balance
-                    remaining_balance = 0
-                else:
-                    # Calculate principal paid this year
-                    yearly_principal = yearly_payment - yearly_interest
-                    remaining_balance = start_balance - yearly_principal
+                # Calculate monthly payments for this year to get accurate yearly totals
+                for month in range(12):
+                    if remaining_balance <= 0:
+                        break
+                    
+                    # Monthly interest on remaining balance
+                    monthly_interest = remaining_balance * monthly_rate
+                    # Monthly principal payment
+                    monthly_principal = emi - monthly_interest
+                    
+                    # Accumulate yearly totals
+                    yearly_interest += monthly_interest
+                    yearly_principal += monthly_principal
+                    
+                    # Update remaining balance
+                    remaining_balance -= monthly_principal
+                
+                # Ensure we don't go negative due to rounding
+                remaining_balance = max(0, remaining_balance)
                 
                 amortization.append({
                     'year': year,

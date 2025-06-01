@@ -1,5 +1,11 @@
 // Initialize chart when DOM is ready with optimized configuration
 document.addEventListener('DOMContentLoaded', function() {
+    // Check if Chart.js is available
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js library is not loaded');
+        return;
+    }
+    
     // Find the chart element
     const chartElement = document.getElementById('loanChart');
     if (!chartElement) return;

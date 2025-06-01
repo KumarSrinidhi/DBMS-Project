@@ -28,13 +28,14 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show loading state
             showLoading(true);
         });
-    }    // ===== Input Formatting and Validation =====
+    }
+
+    // ===== Input Formatting and Validation =====
     if (loanAmount && downPayment) {
-        // Apply number formatting on blur and validate on input and keypress
+        // Apply number formatting on blur and validate on input
         [loanAmount, downPayment].forEach(input => {
             input.addEventListener('blur', formatNumberInput);
             input.addEventListener('input', validateNumericInput);
-            input.addEventListener('keypress', validateNumericInput);
         });
     }
 
@@ -47,20 +48,16 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-
+    
     if (loanTerm) {
         loanTerm.addEventListener('input', validateNumericInput);
-    }    // Animate results section elements if they exist
-    animateResultsSection();
+    }
     
-    // Format pre-filled values if any
-    formatPrefilledValues();
+    // Animate results section elements if they exist
+    animateResultsSection();
     
     // Initialize dynamic input handlers
     setupInputHandlers();
-    
-    // Format pre-filled values on page load
-    formatPrefilledValues();
     
     // ===== Helper Functions =====
     
@@ -134,34 +131,29 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
-      /**
+    
+    /**
      * Validates that input contains only numeric characters
      */
     function validateNumericInput(e) {
-        // For text inputs (loan amount and down payment), handle keypress events
-        if (e.type === 'keypress') {
-            // Allow: enter, backspace, delete, tab
-            if (e.keyCode === 13 || e.keyCode === 8 || e.keyCode === 9 || e.keyCode === 46) {
-                return;
-            }
-            
-            // Allow only digits
-            if (e.keyCode < 48 || e.keyCode > 57) {
-                e.preventDefault();
-                return false;
-            }
+        // Allow: backspace, delete, tab, escape, enter, decimal point, and comma
+        const allowedKeys = [8, 9, 27, 13, 110, 190, 188];
+        
+        // Allow navigation keys
+        if (allowedKeys.includes(e.keyCode) || 
+            // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+            (e.keyCode >= 35 && e.keyCode <= 40) || 
+            ((e.keyCode === 65 || e.keyCode === 67 || e.keyCode === 86 || e.keyCode === 88) && e.ctrlKey === true)) {
+            return;
         }
         
-        // For input events, clean the value
-        if (e.type === 'input') {
-            // Remove non-numeric characters except decimal point
-            this.value = this.value.replace(/[^\d.]/g, '');
-            
-            // Ensure only one decimal point
-            const decimalPoints = (this.value.match(/\./g) || []).length;
-            if (decimalPoints > 1) {
-                this.value = this.value.replace(/\.(?=.*\.)/g, '');
-            }
+        // Remove non-numeric characters except decimal point
+        this.value = this.value.replace(/[^\d.]/g, '');
+        
+        // Ensure only one decimal point
+        const decimalPoints = (this.value.match(/\./g) || []).length;
+        if (decimalPoints > 1) {
+            this.value = this.value.replace(/\.(?=.*\.)/g, '');
         }
     }
     
@@ -309,18 +301,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Format number with thousand separators
     function formatNumber(num) {
         return new Intl.NumberFormat('en-IN').format(num);
-    }
-
-    /**
-     * Format pre-filled values on page load
-     */
-    function formatPrefilledValues() {
-        // Format loan amount and down payment if they have values
-        [loanAmount, downPayment].forEach(input => {
-            if (input && input.value && input.value.trim() !== '') {
-                formatNumberInput.call(input);
-            }
-        });
     }
 
     // Debounce function to limit expensive calculations
