@@ -210,7 +210,7 @@ properties.forEach(property => {
     
     const popupContent = `
         <div class="property-card-mini">
-            <img src="${property.image || '/static/images/properties/1.jpg'}" 
+            <img src="${property.image || '/static/images/properties/placeholder.jpg'}" 
                  class="w-100 mb-2" 
                  alt="${property.title}">
             <h6 class="mb-1">${property.title}</h6>
@@ -250,7 +250,7 @@ document.getElementById('mapFilters').addEventListener('submit', function(e) {
                     const marker = L.marker([property.latitude, property.longitude]);
                     const popupContent = `
                         <div class="property-card-mini">
-                            <img src="${property.images[0] || '/static/images/properties/1.jpg'}" 
+                            <img src="${property.images[0] || '/static/images/properties/placeholder.jpg'}" 
                                  class="w-100 mb-2" 
                                  alt="${property.type}">
                             <h6 class="mb-1">${property.type} in ${property.city}</h6>

@@ -71,7 +71,7 @@
                                     <img src="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/' ~ loop.index ~ '.jpg') }}" 
                                          class="img-thumbnail w-100" alt="Property Image"
                                          style="height: 200px; object-fit: cover;"
-                                         onerror="this.src='{{ url_for('static', filename='images/properties/1.jpg') }}'">
+                                         onerror="this.src='{{ url_for('static', filename='images/properties/placeholder.jpg') }}'">
                                     <button type="button"
                                             class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2" 
                                             onclick="deleteImage({{ image.imageId }})">

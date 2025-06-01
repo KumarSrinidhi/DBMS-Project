@@ -80,11 +80,13 @@
                     {% set primary_image = property.images|selectattr('isPrimary', 'equalto', True)|first %}
                     <img src="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/1.jpg') }}" 
                          class="card-img-top" 
+                                             <img src="{{ url_for('static', filename='images/properties/' ~ property.propertyId ~ '/1.jpg') }}" 
+                         class="card-img-top" 
                          alt="{{ property.property_type.typeName }}"
                          style="height: 250px; object-fit: cover;"
-                         onerror="this.src='{{ url_for('static', filename='images/properties/1.jpg') }}'">
+                         onerror="this.src='{{ url_for('static', filename='images/properties/placeholder.jpg') }}'">
                 {% else %}
-                    <img src="{{ url_for('static', filename='images/properties/1.jpg') }}" 
+                    <img src="{{ url_for('static', filename='images/properties/placeholder.jpg') }}"
                          class="card-img-top" 
                          alt="{{ property.property_type.typeName }}"
                          style="height: 250px; object-fit: cover;">
