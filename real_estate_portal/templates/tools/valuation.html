@@ -94,7 +94,21 @@ body {
 
 /* Content styles */
 .main-content {
-    display: none;
+    display: block; /* Changed from none to block as fallback */
+}
+
+/* Show loading overlay initially */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    background-color: #fefcf9;
 }
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -108,6 +122,12 @@ body {
 
 <!-- Main content (initially hidden) -->
 <div class="container py-5 main-content" id="main-content">
+    <noscript>
+        <style>
+            .loading-overlay { display: none !important; }
+            .main-content { display: block !important; }
+        </style>
+    </noscript>
     <div class="row">
         <div class="col-lg-8 mx-auto">
             <div class="card valuation-tool">
@@ -129,11 +149,10 @@ body {
                             </div>
                             
                             <div class="col-md-6">
-                                <label class="form-label">Location</label>
-                                <select class="form-select" id="location" required>
+                                <label class="form-label">Location</label>                                <select class="form-select" id="location" required>
                                     <option value="">Select location</option>
                                     {% for location in locations %}
-                                    <option value="{{ location.id }}">{{ location.city }} - {{ location.area }}</option>
+                                    <option value="{{ location.locationId if location.locationId else location.id }}">{{ location.city }}{% if location.area %} - {{ location.area }}{% endif %}</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -152,13 +171,13 @@ body {
 
                             <div class="col-12">
                                 <label class="form-label">Amenities</label>
-                                <div class="row g-3">
-                                    {% for amenity in amenities %}
+                                <div class="row g-3">                                    {% for amenity in amenities %}
                                     <div class="col-md-4">
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" 
-                                                   id="{{ amenity.id }}" value="{{ amenity.id }}">
-                                            <label class="form-check-label" for="{{ amenity.id }}">
+                                                   id="amenity_{{ amenity.amenityId if amenity.amenityId else amenity.id }}" 
+                                                   value="{{ amenity.amenityId if amenity.amenityId else amenity.id }}">
+                                            <label class="form-check-label" for="amenity_{{ amenity.amenityId if amenity.amenityId else amenity.id }}">
                                                 {{ amenity.name }}
                                             </label>
                                         </div>
@@ -283,7 +302,7 @@ body {
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 // Orange dot loading animation code
-let isLoading = true;
+// Note: isLoading is already declared in base.html
 let dotsCreated = false;
 let animationInterval;
 const dots = [];
@@ -451,21 +470,40 @@ function startAnimation() {
 
 // Initialize loading screen
 document.addEventListener('DOMContentLoaded', () => {
-    createDots();
-    startAnimation();
-    
-    // Show content after loading animation (3 seconds)
-    setTimeout(() => {
-        if (isLoading) {
-            toggleLoading();
-        }
-    }, 3000);
-    
-    // Initialize progress bars with Bootstrap classes
-    const progressBars = document.querySelectorAll('.progress-bar');
-    progressBars.forEach(bar => {
-        bar.classList.add('progress-bar-striped', 'progress-bar-animated', 'bg-primary');
-    });
+    try {
+        createDots();
+        startAnimation();
+        
+        // Show content after loading animation (3 seconds)
+        setTimeout(() => {
+            if (isLoading) {
+                toggleLoading();
+            }
+        }, 3000);
+        
+        // Fallback: ensure content is visible after 5 seconds regardless
+        setTimeout(() => {
+            const overlay = document.getElementById('loading-overlay');
+            const content = document.getElementById('main-content');
+            if (overlay) overlay.style.display = 'none';
+            if (content) content.style.display = 'block';
+            isLoading = false;
+        }, 5000);
+        
+        // Initialize progress bars with Bootstrap classes
+        const progressBars = document.querySelectorAll('.progress-bar');
+        progressBars.forEach(bar => {
+            bar.classList.add('progress-bar-striped', 'progress-bar-animated', 'bg-primary');
+        });
+    } catch (error) {
+        console.error('Loading animation error:', error);
+        // Fallback: show content immediately if there's an error
+        const overlay = document.getElementById('loading-overlay');
+        const content = document.getElementById('main-content');
+        if (overlay) overlay.style.display = 'none';
+        if (content) content.style.display = 'block';
+        isLoading = false;
+    }
 });
 
 // Listen for resize events

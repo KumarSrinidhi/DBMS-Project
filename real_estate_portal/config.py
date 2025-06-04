@@ -1,6 +1,11 @@
+"""
+Configuration settings for the DreamHome Real Estate Portal application.
+Loads environment variables and defines application configuration parameters.
+"""
 import os
 from dotenv import load_dotenv
 
+# Load environment variables from .env file
 load_dotenv()
 
 class Config:

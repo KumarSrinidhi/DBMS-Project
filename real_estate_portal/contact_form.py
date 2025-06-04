@@ -1,3 +1,7 @@
+"""
+Contact form definition for the DreamHome Real Estate Portal.
+Allows users to send inquiries, feedback, and other communications.
+"""
 from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField, SubmitField, SelectField
 from wtforms.validators import DataRequired, Email, Length, Optional

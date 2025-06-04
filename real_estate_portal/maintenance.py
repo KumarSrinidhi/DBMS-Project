@@ -1,4 +1,9 @@
 
+"""
+Maintenance mode implementation for the DreamHome Real Estate Portal.
+Provides a way to put the site into maintenance mode during updates,
+displaying a friendly message to users instead of error pages.
+"""
 from flask import Flask, render_template, request, current_app, redirect, url_for
 from functools import wraps
 import os

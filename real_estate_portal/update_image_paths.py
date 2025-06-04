@@ -1,3 +1,8 @@
+"""
+Utility script to update property image paths in the database.
+Synchronizes the database image records with actual files on disk.
+Run this script after migration or when file paths are out of sync.
+"""
 import os
 import sys
 from app import app, db

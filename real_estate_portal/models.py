@@ -1,7 +1,13 @@
+"""
+Database models for the DreamHome Real Estate Portal.
+Defines the schema and relationships between database tables using SQLAlchemy ORM.
+"""
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
+from datetime import datetime
 
+# Initialize SQLAlchemy instance
 db = SQLAlchemy()
 
 # Role constants for better maintainability

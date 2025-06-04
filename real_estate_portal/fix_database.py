@@ -1,3 +1,8 @@
+"""
+Database maintenance script for DreamHome Real Estate Portal.
+Fixes various database issues including auto-increment problems and column definitions.
+Run this script when database structure needs to be corrected without full migration.
+"""
 from app import app, db
 import sqlalchemy
 

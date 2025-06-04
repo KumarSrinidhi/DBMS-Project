@@ -1,5 +1,8 @@
--- Fix for the Property table primary key issue
--- This script modifies the Property table to ensure propertyId is auto-incrementing
+/*
+ * Fix for the Property table primary key issue
+ * This script modifies the Property table to ensure propertyId is auto-incrementing
+ * Run this after creating the initial database structure if auto-increment is not working
+ */
 
 -- First, check if the propertyId column already has AUTO_INCREMENT
 SELECT COLUMN_NAME, EXTRA

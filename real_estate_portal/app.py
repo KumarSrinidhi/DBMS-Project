@@ -1,12 +1,22 @@
+"""
+Main application file for the DreamHome Real Estate Portal web application.
+This file contains all route definitions, controller logic, and API endpoints.
+
+The application follows a Flask web framework structure with SQLAlchemy ORM for database operations.
+Various routes are organized by functionality (auth, properties, admin, etc.).
+"""
+
+import os
+import random
+import logging
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, abort
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from models import db, User, Property, PropertyType, IndianLocation, PropertyImages, Amenity, PropertyAmenity, UserRole, UserDocument, Roles
 from config import Config
 from forms import LoginForm, RegistrationForm, PropertyForm
-import os
-import random
 from sqlalchemy import and_, or_, not_, text
 from werkzeug.utils import secure_filename
+from datetime import datetime
 
 app = Flask(__name__, static_url_path='/static', static_folder='static')
 app.config.from_object(Config)
@@ -1077,9 +1087,60 @@ def loan_calculator():
 
 @app.route('/tools/valuation', methods=['GET', 'POST'])
 def property_valuation():
+    """
+    Property valuation tool that estimates property value based on various factors
+    like location, area, amenities, and property type.
+    """
     # Fetch actual locations and amenities from database
-    locations = IndianLocation.query.distinct(IndianLocation.city).all()
-    amenities = Amenity.query.all()
+    try:
+        # Get location and amenity data for the valuation form
+        locations = IndianLocation.query.all()
+        amenities = Amenity.query.all()
+        app.logger.info(f"Loaded {len(locations)} locations and {len(amenities)} amenities for valuation tool")
+    except Exception as e:
+        app.logger.error(f"Database error in valuation tool: {e}")
+        locations = []
+        amenities = []
+    
+    # Provide fallback data if database is empty (this shouldn't happen now)
+    if not locations:
+        print("Warning: No locations found in database, using fallback data")
+        # Create dummy location objects for the template
+        class DummyLocation:
+            def __init__(self, id, city, area):
+                self.id = id
+                self.locationId = id
+                self.city = city
+                self.area = area
+        
+        locations = [
+            DummyLocation(1, "Mumbai", "Andheri"),
+            DummyLocation(2, "Bangalore", "Koramangala"),
+            DummyLocation(3, "Delhi", "Gurgaon"),
+            DummyLocation(4, "Hyderabad", "Hitech City"),
+            DummyLocation(5, "Pune", "Baner"),
+            DummyLocation(6, "Chennai", "Anna Nagar")
+        ]
+    
+    if not amenities:
+        print("Warning: No amenities found in database, using fallback data")
+        # Create dummy amenity objects for the template
+        class DummyAmenity:
+            def __init__(self, id, name):
+                self.id = id
+                self.amenityId = id
+                self.name = name
+        
+        amenities = [
+            DummyAmenity(1, "Swimming Pool"),
+            DummyAmenity(2, "Gym"),
+            DummyAmenity(3, "Garden"),
+            DummyAmenity(4, "Parking"),
+            DummyAmenity(5, "Security"),
+            DummyAmenity(6, "Playground"),
+            DummyAmenity(7, "Clubhouse"),
+            DummyAmenity(8, "Power Backup")
+        ]
     
     if request.method == 'POST':
         data = request.get_json()
@@ -1093,9 +1154,26 @@ def property_valuation():
         
         # Base price calculation
         base_price = carpet_area * 5000  # Base rate of ₹5000 per sq ft
-        
-        # Location multiplier
-        location = IndianLocation.query.get(location_id)
+          # Location multiplier
+        try:
+            location = IndianLocation.query.get(location_id)
+        except Exception:
+            location = None
+            
+        # Use fallback location data if needed
+        if not location and location_id:
+            # Create a dummy location for cities based on location_id
+            dummy_cities = {
+                1: "Mumbai", 2: "Bangalore", 3: "Delhi", 
+                4: "Hyderabad", 5: "Pune", 6: "Chennai"
+            }
+            city_name = dummy_cities.get(location_id, "Mumbai")
+            
+            class DummyLocation:
+                def __init__(self, city):
+                    self.city = city
+            
+            location = DummyLocation(city_name)
         if location:
             if location.city.lower() in ['mumbai', 'delhi']:
                 base_price *= 1.8

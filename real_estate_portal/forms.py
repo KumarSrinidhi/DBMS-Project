@@ -1,3 +1,7 @@
+"""
+Form definitions for the DreamHome Real Estate Portal application.
+Uses Flask-WTF for form handling and validation.
+"""
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SubmitField, TextAreaField, DecimalField, IntegerField, SelectField, SelectMultipleField, FloatField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError, Optional

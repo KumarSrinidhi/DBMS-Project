@@ -1,4 +1,10 @@
 
+/*
+ * Notification system enhancement script
+ * Adds read timestamp tracking to notifications and optimizes database queries
+ * This script should be run after the initial database setup is complete
+ */
+
 -- Add read_at timestamp to track when notifications are read
 ALTER TABLE Notifications 
 ADD COLUMN read_at TIMESTAMP NULL;

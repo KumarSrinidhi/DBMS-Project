@@ -1,3 +1,8 @@
+"""
+Password management utility script for DreamHome Real Estate Portal.
+Provides functions to reset passwords and update user authentication data.
+Run this script when passwords need to be reset or rehashed.
+"""
 from app import app
 from models import db, User
 from werkzeug.security import generate_password_hash

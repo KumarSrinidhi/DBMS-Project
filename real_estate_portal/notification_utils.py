@@ -1,7 +1,12 @@
 
+"""
+Utility functions for handling notifications in the DreamHome Real Estate Portal.
+Provides methods to create, retrieve, and manage user notifications.
+"""
 from flask import current_app
 from models import db, Notification, User
 from sqlalchemy import desc
+from datetime import datetime
 
 def create_notification(user_id, title, message, notification_type="system"):
     """
