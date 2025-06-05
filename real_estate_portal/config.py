@@ -50,3 +50,11 @@ class Config:
     # Development vs Production settings
     DEBUG = os.environ.get('FLASK_ENV') == 'development'
     TESTING = False
+
+# This file contains configuration settings for the Flask application.
+# Key responsibilities:
+# - Defining environment-specific settings (development, production, testing)
+# - Setting up database URIs, secret keys, and mail server configs
+# - Loading sensitive values from environment variables for security
+# - Providing a Config class or similar structure for easy access
+# - Used by app.py to initialize the Flask app with correct settings

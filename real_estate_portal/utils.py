@@ -1,7 +1,14 @@
 """
 Utility functions for the DreamHome Real Estate Portal.
 Contains helper functions used throughout the application.
+
+This file contains utility functions used throughout the application.
+Key responsibilities:
+- Providing helper functions for file uploads, formatting, etc.
+- Centralizing reusable logic to avoid code duplication
+- Used by routes, models, and other modules as needed
 """
+
 import os
 import re
 import uuid

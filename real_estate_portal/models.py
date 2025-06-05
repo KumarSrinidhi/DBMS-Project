@@ -1,7 +1,18 @@
 """
 Database models for the DreamHome Real Estate Portal.
 Defines the schema and relationships between database tables using SQLAlchemy ORM.
+
+This file defines the SQLAlchemy ORM models for the database tables.
+Key responsibilities:
+- Declaring classes for each table (User, Property, Document, etc.)
+- Defining relationships and foreign keys between tables
+- Adding model methods for business logic (e.g., password hashing, role checks)
+- Setting up constraints and validation at the model level
+- Integrating with Flask-Login for user authentication
+- Providing serialization methods for API responses if needed
+- Ensuring all models reflect the current database schema
 """
+
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
@@ -185,8 +196,6 @@ class UserDocument(db.Model):
     # Define relationships
     user = db.relationship('User', foreign_keys=[user_id], backref='documents')
     verified_by_user = db.relationship('User', foreign_keys=[verified_by], backref='verified_documents')
-
-
 
 
 # Add other models similarly...

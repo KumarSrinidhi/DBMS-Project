@@ -6,6 +6,21 @@ The application follows a Flask web framework structure with SQLAlchemy ORM for 
 Various routes are organized by functionality (auth, properties, admin, etc.).
 """
 
+# app.py
+# This is the main entry point for the Flask application.
+# It initializes the app, configures extensions, registers blueprints, and runs the server.
+# Key responsibilities:
+# - App and extension initialization (Flask, SQLAlchemy, LoginManager, etc.)
+# - Registering blueprints for modular route organization
+# - Error handling and logging setup
+# - Running the Flask development server
+# - Loading configuration from config.py or environment variables
+# - Importing models and forms for use in routes
+# - Defining main routes (index, dashboard, etc.)
+# - Handling user authentication and session management
+# - Integrating with email, file upload, and notification utilities
+# - Ensuring security best practices (CSRF, input validation, etc.)
+
 import os
 import random
 import logging
@@ -2189,7 +2204,3 @@ def document_download(doc_id):
         current_app.logger.error(f"Error serving document download: {str(e)}")
         flash("An error occurred while trying to download the document.", "danger")
         return redirect(url_for('user_profile'))
-
-
-if __name__ == "__main__":
-    app.run(debug=True)
