@@ -9,6 +9,8 @@ Various routes are organized by functionality (auth, properties, admin, etc.).
 import os
 import random
 import logging
+import time
+import shutil
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, abort, send_file, current_app
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from models import db, User, Property, PropertyType, IndianLocation, PropertyImages, Amenity, PropertyAmenity, UserRole, UserDocument, Roles
@@ -192,7 +194,7 @@ init_db()
 
 @login_manager.user_loader
 def load_user(user_id):
-    user = User.query.get(int(user_id))
+    user = db.session.get(User, int(user_id))
     if user and user.isBanned:
         return None  # Return None for banned users which will log them out
     return user
@@ -202,7 +204,7 @@ def load_user(user_id):
 def check_user_ban_status():
     # Only check if user is authenticated
     if current_user.is_authenticated:
-        user = User.query.get(current_user.userId)
+        user = db.session.get(User, current_user.userId)
         if user and user.isBanned:
             logout_user()
             flash('Your account has been banned. Please contact the administrator.', 'danger')
@@ -346,6 +348,45 @@ def upload_image(property_id):
             
         except Exception as e:
             db.session.rollback()
+            return jsonify({'error': str(e)}), 500
+    
+    return jsonify({'error': 'Invalid file type'}), 400
+
+@app.route('/upload/temp', methods=['POST'])
+@login_required
+def upload_temp_image():
+    """Upload image temporarily before property is created"""
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file selected'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    
+    if file and allowed_file(file.filename):
+        try:
+            # Create temporary folder for this user
+            temp_folder = os.path.join('static', 'images', 'temp', str(current_user.userId))
+            os.makedirs(temp_folder, exist_ok=True)
+            
+            # Generate unique filename with timestamp
+            import uuid
+            timestamp = int(time.time())
+            file_extension = file.filename.rsplit('.', 1)[1].lower()
+            unique_filename = f"{uuid.uuid4()}_{timestamp}.{file_extension}"
+            
+            file_path = os.path.join(temp_folder, unique_filename)
+            file.save(file_path)
+            
+            # Return temp path for client-side handling
+            temp_url = f'/static/images/temp/{current_user.userId}/{unique_filename}'
+            return jsonify({
+                'success': True,
+                'imageUrl': temp_url,
+                'tempPath': file_path
+            })
+            
+        except Exception as e:
             return jsonify({'error': str(e)}), 500
     
     return jsonify({'error': 'Invalid file type'}), 400
@@ -561,9 +602,7 @@ def add_property():
                 description=form.description.data
             )
             db.session.add(property)
-            db.session.flush()  # Get the property ID without committing
-
-            # Save amenities
+            db.session.flush()  # Get the property ID without committing            # Save amenities
             if form.amenities.data:
                 for amenity in form.amenities.data:
                     prop_amenity = PropertyAmenity(
@@ -571,6 +610,52 @@ def add_property():
                         amenityId=int(amenity)
                     )
                     db.session.add(prop_amenity)
+            
+            # Handle temporary images from form submission
+            image_urls = request.form.getlist('images[]')
+            if image_urls:
+                # Create property folder
+                property_folder = os.path.join('static', 'images', 'properties', str(property.propertyId))
+                os.makedirs(property_folder, exist_ok=True)
+                
+                # Move temp images to property folder and save to database
+                temp_folder = os.path.join('static', 'images', 'temp', str(current_user.userId))
+                
+                for i, temp_url in enumerate(image_urls):
+                    if temp_url.startswith('/static/images/temp/'):
+                        try:
+                            # Extract filename from temp URL
+                            temp_filename = temp_url.split('/')[-1]
+                            temp_file_path = os.path.join(temp_folder, temp_filename)
+                            
+                            if os.path.exists(temp_file_path):
+                                # Generate new filename for property
+                                file_extension = temp_filename.split('.')[-1]
+                                new_filename = f"image_{i+1}.{file_extension}"
+                                new_file_path = os.path.join(property_folder, new_filename)
+                                
+                                # Move file from temp to property folder
+                                import shutil
+                                shutil.move(temp_file_path, new_file_path)
+                                
+                                # Save to database
+                                image_url = f'/static/images/properties/{property.propertyId}/{new_filename}'
+                                image = PropertyImages(
+                                    propertyId=property.propertyId,
+                                    imageURL=image_url,
+                                    isPrimary=(i == 0)  # First image is primary
+                                )
+                                db.session.add(image)
+                        except Exception as e:
+                            print(f"Error moving temp image: {str(e)}")
+                            continue
+                
+                # Clean up temp folder
+                try:
+                    if os.path.exists(temp_folder):
+                        shutil.rmtree(temp_folder)
+                except Exception as e:
+                    print(f"Error cleaning temp folder: {str(e)}")
             
             db.session.commit()
             flash('Your property has been listed successfully!', 'success')

@@ -363,9 +363,13 @@ if (!propertyId) {
 // For debugging
 console.log("Using propertyId for uploads:", propertyId);
 
+// Determine upload URL based on whether we have a property ID
+const uploadUrl = propertyId ? `/upload/${propertyId}` : '/upload/temp';
+console.log("Upload URL:", uploadUrl);
+
 // Initialize Dropzone with the correct URL
 Dropzone.options.propertyImages = {
-    url: `/upload/${propertyId}`,
+    url: uploadUrl,
     paramName: "file",
     maxFiles: 10,
     maxFilesize: 5,
