@@ -9,14 +9,18 @@ Various routes are organized by functionality (auth, properties, admin, etc.).
 import os
 import random
 import logging
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, abort
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, abort, send_file, current_app
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from models import db, User, Property, PropertyType, IndianLocation, PropertyImages, Amenity, PropertyAmenity, UserRole, UserDocument, Roles
 from config import Config
 from forms import LoginForm, RegistrationForm, PropertyForm
+from sqlalchemy import text
 from sqlalchemy import and_, or_, not_, text
 from werkzeug.utils import secure_filename
 from datetime import datetime
+from rate_limiter import login_rate_limit
+from logging_config import setup_logging, log_security_event
+from decorators import admin_required
 
 app = Flask(__name__, static_url_path='/static', static_folder='static')
 app.config.from_object(Config)
@@ -26,62 +30,163 @@ db.init_app(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
+# Set up logging
+setup_logging(app)
+
 # Create database tables
+def url_has_allowed_host_and_scheme(url):
+    """
+    Checks if the URL is safe for redirects to prevent open redirect vulnerabilities.
+    
+    Args:
+        url (str): URL to check
+        
+    Returns:
+        bool: True if the URL is safe, False otherwise
+    """
+    if not url:
+        return False
+    
+    # Sanitize the URL input first
+    url = url.strip()
+    
+    # Check if it's a relative URL (starts with / but not //)
+    if url.startswith('/') and not url.startswith('//'):
+        # Make sure the URL doesn't have any sneaky protocol handlers
+        if ':' not in url:
+            return True
+        return False
+        
+    # Parse the URL to check scheme and netloc
+    from urllib.parse import urlparse
+    try:
+        parsed = urlparse(url)
+        
+        # Only allow http, https schemes
+        if parsed.scheme not in ('http', 'https'):
+            return False
+        
+        # Check if the host is in allowed hosts
+        allowed_hosts = {
+            'localhost', 
+            '127.0.0.1',
+            request.host,
+            app.config.get('SERVER_NAME', '')
+        }
+        
+        # Add any additional allowed domains from configuration
+        if app.config.get('ALLOWED_REDIRECT_DOMAINS'):
+            allowed_hosts.update(set(app.config.get('ALLOWED_REDIRECT_DOMAINS')))
+        
+        # Properly check subdomain patterns 
+        for allowed in allowed_hosts:
+            if allowed and allowed.startswith('.') and parsed.netloc.endswith(allowed[1:]):
+                return True
+            elif parsed.netloc == allowed:
+                return True
+                
+        return False
+    except Exception as e:
+        app.logger.error(f"URL validation error: {str(e)} for URL: {url}")
+        return False
+
 def init_db():
     with app.app_context():
-        db.create_all()
-        
-        # Initialize amenities if they don't exist
-        amenities = [
-            {'id': 1, 'name': 'Swimming Pool', 'description': 'Swimming pool facility'},
-            {'id': 2, 'name': 'Gym', 'description': 'Modern fitness center'},
-            {'id': 3, 'name': 'Garden', 'description': 'Landscaped garden area'},
-            {'id': 4, 'name': 'Parking', 'description': 'Reserved parking space'},
-            {'id': 5, 'name': 'Security', 'description': '24/7 security service'},
-            {'id': 6, 'name': 'Playground', 'description': 'Children\'s playground'}
-        ]
-        
-        for amenity_data in amenities:
-            amenity = db.session.get(Amenity, amenity_data['id'])
-            if not amenity:
-                amenity = Amenity(
-                    amenityId=amenity_data['id'],
-                    name=amenity_data['name'],
-                    description=amenity_data['description']
-                )
-                db.session.add(amenity)
-        
-        # Initialize roles if they don't exist
-        roles = [
-            {'id': Roles.ADMIN, 'name': 'Admin'},
-            {'id': Roles.AGENT, 'name': 'Agent'},
-            {'id': Roles.BUYER, 'name': 'Buyer'},
-            {'id': Roles.SELLER, 'name': 'Seller'}
-        ]
-        
-        for role_data in roles:
-            role = db.session.get(UserRole, role_data['id'])
-            if not role:
-                role = UserRole(roleId=role_data['id'], roleName=role_data['name'])
-                db.session.add(role)
-        
-        # Create admin user if it doesn't exist
-        admin = User.query.filter_by(email='admin@realestate.com').first()
-        if not admin:
-            admin = User(
-                username='admin',
-                email='admin@realestate.com',
-                mobile='9999999999',
-                roleId=Roles.ADMIN  # Admin role
-            )
-            admin.set_password('admin123')
-            db.session.add(admin)
-        
         try:
+            # Try to create all tables
+            db.create_all()
+              # Add new columns if they don't exist
+            try:
+                with db.engine.connect() as conn:
+                    # Get list of all security columns we need to check
+                    security_columns = [
+                        'loginAttempts', 'lastLoginAttempt', 'lastPasswordChange',
+                        'passwordResetToken', 'passwordResetExpires', 'lastLogin',
+                        'lastLoginIP', 'twoFactorEnabled', 'twoFactorSecret'
+                    ]
+                    
+                    # Check if any of the security columns are missing
+                    missing_columns = []
+                    for column in security_columns:
+                        result = conn.execute(text(f"""
+                            SELECT COUNT(*)
+                            FROM information_schema.COLUMNS 
+                            WHERE TABLE_NAME = 'Users'
+                            AND COLUMN_NAME = '{column}'
+                        """))
+                        
+                        if result.scalar() == 0:
+                            missing_columns.append(column)
+                    
+                    # Apply new columns from SQL file if any are missing
+                    if missing_columns:
+                        app.logger.info(f"Missing security columns: {', '.join(missing_columns)}. Adding them now.")
+                        try:
+                            with open('add_user_security_columns.sql', 'r') as f:
+                                sql = f.read()
+                                conn.execute(text(sql))
+                                app.logger.info("Successfully added security columns to the Users table")
+                        except FileNotFoundError:
+                            app.logger.error("add_user_security_columns.sql file not found.")
+                            print("Warning: add_user_security_columns.sql file not found.")
+                    else:
+                        app.logger.info("All security columns already exist in the Users table.")
+            except Exception as e:
+                app.logger.error(f"Error adding new columns: {str(e)}")
+                print(f"Error adding new columns: {str(e)}")
+            
+            # Initialize amenities if they don't exist
+            amenities = [
+                {'id': 1, 'name': 'Swimming Pool', 'description': 'Swimming pool facility'},
+                {'id': 2, 'name': 'Gym', 'description': 'Modern fitness center'},
+                {'id': 3, 'name': 'Garden', 'description': 'Landscaped garden area'},
+                {'id': 4, 'name': 'Parking', 'description': 'Reserved parking space'},
+                {'id': 5, 'name': 'Security', 'description': '24/7 security service'},
+                {'id': 6, 'name': 'Playground', 'description': 'Children\'s playground'}
+            ]
+            
+            for amenity_data in amenities:
+                amenity = db.session.get(Amenity, amenity_data['id'])
+                if not amenity:
+                    amenity = Amenity(
+                        amenityId=amenity_data['id'],
+                        name=amenity_data['name'],
+                        description=amenity_data['description']
+                    )
+                    db.session.add(amenity)
+            
+            # Initialize roles if they don't exist
+            roles = [
+                {'id': Roles.ADMIN, 'name': 'Admin'},
+                {'id': Roles.AGENT, 'name': 'Agent'},
+                {'id': Roles.BUYER, 'name': 'Buyer'},
+                {'id': Roles.SELLER, 'name': 'Seller'}
+            ]
+            
+            for role_data in roles:
+                role = db.session.get(UserRole, role_data['id'])
+                if not role:
+                    role = UserRole(roleId=role_data['id'], roleName=role_data['name'])
+                    db.session.add(role)
+            
+            # Create admin user if it doesn't exist
+            admin = User.query.filter_by(email='admin@realestate.com').first()
+            if not admin:
+                admin = User(
+                    username='admin',
+                    email='admin@realestate.com',
+                    mobile='9999999999',
+                    roleId=Roles.ADMIN  # Admin role
+                )
+                admin.set_password('admin123')
+                db.session.add(admin)
+            
+            # Commit all changes
             db.session.commit()
         except Exception as e:
-            print(f"Error initializing database: {e}")
             db.session.rollback()
+            print(f"Error during database initialization: {str(e)}")
+            raise
 
 init_db()
 
@@ -113,6 +218,7 @@ def index():
     return render_template('index.html', properties=properties)
 
 @app.route('/login', methods=['GET', 'POST'])
+@login_rate_limit()
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
@@ -120,13 +226,55 @@ def login():
     form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data).first()
+        
+        # Update login attempt counter and timestamp
+        if user:
+            user.lastLoginAttempt = datetime.utcnow()
+            user.loginAttempts += 1
+            db.session.commit()
+        
         if user and user.check_password(form.password.data):
             if user.isBanned:
+                log_security_event('login_blocked', {'reason': 'banned_user'}, user.userId)
                 flash('Your account has been banned. Please contact the administrator.', 'danger')
                 return render_template('auth/login.html', form=form)
+                
+            if not user.isActive:
+                log_security_event('login_blocked', {'reason': 'inactive_user'}, user.userId)
+                flash('Your account is inactive. Please contact support.', 'danger')
+                return render_template('auth/login.html', form=form)
+            
+            # Reset login attempts on successful login
+            user.loginAttempts = 0
+            user.lastLogin = datetime.utcnow()
+            user.lastLoginIP = request.remote_addr
+            db.session.commit()
+            
             login_user(user, remember=form.remember.data)
+            log_security_event('login_success', {
+                'ip': request.remote_addr,
+                'user_agent': request.user_agent.string
+            }, user.userId)
+            
             next_page = request.args.get('next')
-            return redirect(next_page) if next_page else redirect(url_for('index'))
+            if next_page and url_has_allowed_host_and_scheme(next_page):
+                return redirect(next_page)
+            return redirect(url_for('index'))
+            
+        # Log failed login attempt
+        if user:
+            log_security_event('login_failed', {
+                'username': form.username.data,
+                'ip': request.remote_addr,
+                'attempts': user.loginAttempts
+            }, user.userId)
+        else:
+            log_security_event('login_failed', {
+                'username': form.username.data,
+                'ip': request.remote_addr,
+                'reason': 'user_not_found'
+            })
+            
         flash('Invalid username or password', 'danger')
     return render_template('auth/login.html', form=form)
 
@@ -772,31 +920,88 @@ def toggle_favorite(property_id):
 @app.route('/documents/upload', methods=['POST'])
 @login_required
 def upload_document():
-    if 'document' not in request.files:
-        return jsonify({'error': 'No file uploaded'}), 400
+    """
+    Securely handle document uploads with strict validation and error handling.
     
-    file = request.files['document']
-    doc_type = request.form['doc_type']
-    
-    if file and allowed_file(file.filename):
-        filename = f"user_{current_user.userId}_{doc_type}_{secure_filename(file.filename)}"
+    Returns:
+        JSON response with status and document ID or error message
+    """
+    try:
+        # Check if document was uploaded
+        if 'document' not in request.files:
+            return jsonify({'error': 'No file uploaded'}), 400
+        
+        file = request.files['document']
+        
+        # Check if file is empty
+        if file.filename == '':
+            return jsonify({'error': 'Empty file submitted'}), 400
+            
+        # Validate document type
+        if 'doc_type' not in request.form or not request.form['doc_type']:
+            return jsonify({'error': 'Document type is required'}), 400
+            
+        doc_type = request.form['doc_type']
+        
+        # Validate document type value
+        valid_doc_types = ['identity', 'address', 'income', 'property', 'legal', 'financial']
+        if doc_type not in valid_doc_types:
+            return jsonify({'error': 'Invalid document type'}), 400
+        
+        # Check file type and size
+        if not file or not allowed_file(file.filename):
+            return jsonify({'error': 'Invalid file type. Allowed types: pdf, jpg, jpeg, png'}), 400
+            
+        # Check file size (limit to 10MB)
+        if file.content_length and file.content_length > 10 * 1024 * 1024:  # 10MB
+            return jsonify({'error': 'File too large. Maximum size: 10MB'}), 400
+        
+        # Generate secure filename with timestamp to prevent overwriting
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        filename = f"user_{current_user.userId}_{doc_type}_{timestamp}_{secure_filename(file.filename)}"
+        
+        # Ensure upload directory exists
+        os.makedirs(app.config['DOCUMENT_UPLOAD_FOLDER'], exist_ok=True)
+        
+        # Save file securely
         filepath = os.path.join(app.config['DOCUMENT_UPLOAD_FOLDER'], filename)
         file.save(filepath)
         
+        # Log document upload for audit purposes
+        log_security_event(
+            event_type="document_upload",
+            user_id=current_user.userId,
+            ip_address=request.remote_addr,
+            description=f"Document uploaded: type={doc_type}, filename={filename}"
+        )
+        
+        # Store document metadata in database
         doc = UserDocument(
             user_id=current_user.userId,
             doc_type=doc_type,
-            file_path=filepath
+            file_path=filepath,
+            original_filename=file.filename,
+            file_size=os.path.getsize(filepath),
+            mime_type=file.content_type,
+            upload_date=datetime.now()
         )
         db.session.add(doc)
         db.session.commit()
         
         return jsonify({
             'status': 'success',
-            'document_id': doc.doc_id
+            'message': 'Document uploaded successfully',
+            'document_id': doc.doc_id,
+            'document_type': doc_type
         })
     
-    return jsonify({'error': 'Invalid file'}), 400
+    except Exception as e:
+        app.logger.error(f"Document upload error: {str(e)}")
+        db.session.rollback()
+        return jsonify({
+            'error': 'Document upload failed',
+            'details': str(e) if app.debug else 'An unexpected error occurred'
+        }), 500
 
 @app.route('/tools/budget-finder')
 def budget_finder():
@@ -840,45 +1045,21 @@ def rera_check(property_id):
 
 @app.route('/loan/calculator', methods=['GET', 'POST'])
 def home_loan_calculator():
-    if request.method == 'POST':
-        amount = float(request.form['amount'])
-        tenure = int(request.form['tenure'])
-        rate = float(request.form['rate'])
-        
-        # EMI calculation
-        monthly_rate = rate / 12 / 100
-        emi = (amount * monthly_rate * (1 + monthly_rate)**tenure) / ((1 + monthly_rate)**tenure - 1)
-        
-        return render_template('loan/calculator.html', 
-                            emi=round(emi, 2),
-                            form_data=request.form)
-    
-    return render_template('loan/calculator.html')
+    """
+    Simplified loan calculator route that redirects to the main calculator.
+    Maintained for backward compatibility with existing links.
+    """
+    return redirect(url_for('loan_calculator'))
 
-@app.route('/property/valuate', methods=['POST'])
-def valuate_property():
-    data = request.json
-    # Mock valuation algorithm - replace with real logic
-    base_rate = {
-        'Mumbai': 15000,
-        'Bangalore': 10000,
-        'Delhi': 12000
-    }.get(data['city'], 8000)
-    
-    valuation = {
-        'market_value': base_rate * int(data['area']),
-        'rental_value': base_rate * int(data['area']) / 1000,
-        'suggested_price_range': {
-            'min': base_rate * int(data['area']) * 0.9,
-            'max': base_rate * int(data['area']) * 1.1
-        }
-    }
-    
-    return jsonify(valuation)
+
 
 @app.route('/loan/apply', methods=['POST'])
 @login_required
 def apply_loan():
+    if not current_user.is_authenticated:
+        flash("Please log in to apply for a loan", "warning")
+        return redirect(url_for('login', next=url_for('loan_calculator')))
+        
     try:
         # Validate amount and convert to float
         amount = 0
@@ -890,29 +1071,76 @@ def apply_loan():
             flash("Please enter a valid loan amount", "danger")
             return redirect(url_for('loan_calculator'))
         
-        # Process loan application with validation
+        # Validate interest rate
+        rate = 0
+        try:
+            rate = float(request.form.get('rate', 0))
+            if rate <= 0:
+                raise ValueError("Interest rate must be greater than zero")
+        except (ValueError, KeyError):
+            flash("Please enter a valid interest rate", "danger")
+            return redirect(url_for('loan_calculator'))
+            
+        # Validate tenure
+        tenure = 0
+        try:
+            tenure = int(request.form.get('tenure', 0))
+            if tenure <= 0:
+                raise ValueError("Loan tenure must be greater than zero")
+        except (ValueError, KeyError):
+            flash("Please enter a valid loan tenure", "danger")
+            return redirect(url_for('loan_calculator'))
+            
         # Generate reference ID safely
         reference_id = f"LOAN{random.randint(100000, 999999)}"
         
-        # Mock approval with safety checks
-        max_amount = amount * 1.2
+        # Log loan application for security/audit
+        log_security_event(
+            event_type="loan_application",
+            user_id=current_user.userId,
+            ip_address=request.remote_addr,
+            description=f"Loan application submitted: Amount={amount}, Rate={rate}%, Tenure={tenure} years"
+        )
+        
+        # Mock approval with safety checks - in real app, this would call a loan approval service
+        # Apply a simple heuristic for demo - higher amounts have more conservative approval
+        if amount > 10000000:  # > 1 crore
+            max_amount = amount * 0.8  # 80% approval for large loans
+        elif amount > 5000000:  # > 50 lakhs
+            max_amount = amount * 0.9  # 90% approval for medium loans
+        else:
+            max_amount = amount * 1.2  # 120% approval for small loans
         
         # Create response data
         bank_response = {
             'status': 'pre_approved',
             'reference_id': reference_id,
+            'requested_amount': amount,
             'max_amount': max_amount,
+            'rate': rate,
+            'tenure': tenure,
             'user_id': current_user.userId,
-            'application_date': db.func.now()
+            'application_date': datetime.now()
         }
         
         return render_template('loan/application_result.html', result=bank_response)
     except Exception as e:
+        log_security_event(
+            event_type="loan_application_error",
+            user_id=current_user.userId if current_user.is_authenticated else None,
+            ip_address=request.remote_addr,
+            description=f"Error during loan application: {str(e)}"
+        )
         flash(f"Error processing loan application: {str(e)}", "danger")
         return redirect(url_for('loan_calculator'))
 
 @app.route('/tools/compare')
 def compare_properties():
+    """
+    Compare multiple properties side by side.
+    Handles adding, removing, and displaying properties for comparison.
+    Limits comparison to maximum of 3 properties.
+    """
     # Get property IDs from session or query parameters - create a new list instead of directly referencing
     properties_to_compare = session.get('compare_list', [])
     if not isinstance(properties_to_compare, list):
@@ -921,30 +1149,66 @@ def compare_properties():
         # Create a new copy to avoid direct modification of the session object
         properties_to_compare = properties_to_compare.copy()
     
+    MAX_PROPERTIES = 3  # Maximum number of properties to compare
+    
     # Handle adding new property to comparison
     if add_id := request.args.get('add'):
-        add_id_int = int(add_id)
-        if len(properties_to_compare) < 3 and add_id_int not in properties_to_compare:
-            # Append to our copy, not directly to the session object
-            properties_to_compare.append(add_id_int)
-            # Then update the session with the new list
-            session['compare_list'] = properties_to_compare
+        try:
+            add_id_int = int(add_id)
+            # Check if property exists
+            property_exists = Property.query.get(add_id_int) is not None
+            
+            if property_exists and len(properties_to_compare) < MAX_PROPERTIES and add_id_int not in properties_to_compare:
+                # Append to our copy, not directly to the session object
+                properties_to_compare.append(add_id_int)
+                # Then update the session with the new list
+                session['compare_list'] = properties_to_compare
+                flash('Property added to comparison', 'success')
+            elif not property_exists:
+                flash('Property not found', 'danger')
+            elif add_id_int in properties_to_compare:
+                flash('Property is already in comparison', 'info')
+            elif len(properties_to_compare) >= MAX_PROPERTIES:
+                flash(f'You can compare a maximum of {MAX_PROPERTIES} properties', 'warning')
+        except ValueError:
+            flash('Invalid property ID', 'danger')
     
     # Handle removing property from comparison
     if remove_id := request.args.get('remove'):
-        remove_id_int = int(remove_id)
-        if remove_id_int in properties_to_compare:
-            # Remove from our copy, not directly from the session object
-            properties_to_compare.remove(remove_id_int)
-            # Then update the session with the new list
-            session['compare_list'] = properties_to_compare
+        try:
+            remove_id_int = int(remove_id)
+            if remove_id_int in properties_to_compare:
+                # Remove from our copy, not directly from the session object
+                properties_to_compare.remove(remove_id_int)
+                # Then update the session with the new list
+                session['compare_list'] = properties_to_compare
+                flash('Property removed from comparison', 'info')
+        except ValueError:
+            flash('Invalid property ID', 'danger')
     
-    # Fetch property details for comparison
+    # Handle clearing all properties
+    if request.args.get('clear') == 'all':
+        properties_to_compare = []
+        session['compare_list'] = []
+        flash('Comparison list cleared', 'info')
+    
+    # Fetch property details for comparison with eager loading of relationships
     properties = []
     if properties_to_compare:
-        properties = Property.query\
-            .filter(Property.propertyId.in_(properties_to_compare))\
-            .all()
+        try:
+            properties = Property.query\
+                .options(db.joinedload(Property.property_type))\
+                .options(db.joinedload(Property.location))\
+                .options(db.joinedload(Property.images))\
+                .options(db.joinedload(Property.amenities).joinedload(PropertyAmenity.amenity))\
+                .filter(Property.propertyId.in_(properties_to_compare))\
+                .all()
+                
+            # Maintain the order from properties_to_compare list
+            properties.sort(key=lambda p: properties_to_compare.index(p.propertyId))
+        except Exception as e:
+            app.logger.error(f"Error fetching properties for comparison: {str(e)}")
+            flash('Error loading properties for comparison', 'danger')
     
     return render_template('tools/compare.html', properties=properties)
 
@@ -1085,148 +1349,7 @@ def loan_calculator():
     
     return render_template('tools/loan_calculator.html')
 
-@app.route('/tools/valuation', methods=['GET', 'POST'])
-def property_valuation():
-    """
-    Property valuation tool that estimates property value based on various factors
-    like location, area, amenities, and property type.
-    """
-    # Fetch actual locations and amenities from database
-    try:
-        # Get location and amenity data for the valuation form
-        locations = IndianLocation.query.all()
-        amenities = Amenity.query.all()
-        app.logger.info(f"Loaded {len(locations)} locations and {len(amenities)} amenities for valuation tool")
-    except Exception as e:
-        app.logger.error(f"Database error in valuation tool: {e}")
-        locations = []
-        amenities = []
-    
-    # Provide fallback data if database is empty (this shouldn't happen now)
-    if not locations:
-        print("Warning: No locations found in database, using fallback data")
-        # Create dummy location objects for the template
-        class DummyLocation:
-            def __init__(self, id, city, area):
-                self.id = id
-                self.locationId = id
-                self.city = city
-                self.area = area
-        
-        locations = [
-            DummyLocation(1, "Mumbai", "Andheri"),
-            DummyLocation(2, "Bangalore", "Koramangala"),
-            DummyLocation(3, "Delhi", "Gurgaon"),
-            DummyLocation(4, "Hyderabad", "Hitech City"),
-            DummyLocation(5, "Pune", "Baner"),
-            DummyLocation(6, "Chennai", "Anna Nagar")
-        ]
-    
-    if not amenities:
-        print("Warning: No amenities found in database, using fallback data")
-        # Create dummy amenity objects for the template
-        class DummyAmenity:
-            def __init__(self, id, name):
-                self.id = id
-                self.amenityId = id
-                self.name = name
-        
-        amenities = [
-            DummyAmenity(1, "Swimming Pool"),
-            DummyAmenity(2, "Gym"),
-            DummyAmenity(3, "Garden"),
-            DummyAmenity(4, "Parking"),
-            DummyAmenity(5, "Security"),
-            DummyAmenity(6, "Playground"),
-            DummyAmenity(7, "Clubhouse"),
-            DummyAmenity(8, "Power Backup")
-        ]
-    
-    if request.method == 'POST':
-        data = request.get_json()
-        
-        # Get valuation parameters
-        carpet_area = float(data.get('carpetArea', 0))
-        location_id = int(data.get('location', 0))
-        property_type = data.get('propertyType', '')
-        property_age = int(data.get('propertyAge', 0))
-        amenities_list = data.get('amenities', [])
-        
-        # Base price calculation
-        base_price = carpet_area * 5000  # Base rate of ₹5000 per sq ft
-          # Location multiplier
-        try:
-            location = IndianLocation.query.get(location_id)
-        except Exception:
-            location = None
-            
-        # Use fallback location data if needed
-        if not location and location_id:
-            # Create a dummy location for cities based on location_id
-            dummy_cities = {
-                1: "Mumbai", 2: "Bangalore", 3: "Delhi", 
-                4: "Hyderabad", 5: "Pune", 6: "Chennai"
-            }
-            city_name = dummy_cities.get(location_id, "Mumbai")
-            
-            class DummyLocation:
-                def __init__(self, city):
-                    self.city = city
-            
-            location = DummyLocation(city_name)
-        if location:
-            if location.city.lower() in ['mumbai', 'delhi']:
-                base_price *= 1.8
-            elif location.city.lower() in ['bangalore', 'pune', 'hyderabad']:
-                base_price *= 1.5
-            elif location.city.lower() in ['chennai', 'kolkata']:
-                base_price *= 1.3
-        
-        # Property type adjustment
-        type_multipliers = {
-            'apartment': 1.0,
-            'villa': 1.4,
-            'independent': 1.2,
-            'plot': 0.8
-        }
-        base_price *= type_multipliers.get(property_type, 1.0)
-        
-        # Age depreciation
-        if property_age > 0:
-            age_factor = max(0.6, 1 - (property_age * 0.02))  # 2% depreciation per year, minimum 60% of value
-            base_price *= age_factor
-        
-        # Amenities bonus
-        amenity_bonus = len(amenities_list) * 0.03  # 3% increase per amenity
-        base_price *= (1 + amenity_bonus)
-        
-        # Calculate confidence score based on data completeness
-        confidence_factors = [
-            bool(carpet_area),
-            bool(location_id),
-            bool(property_type),
-            bool(property_age),
-            bool(amenities_list)
-        ]
-        confidence_score = (sum(confidence_factors) / len(confidence_factors)) * 100
-        
-        # Calculate range with wider spread for lower confidence
-        spread_factor = (100 - confidence_score) / 100 + 0.1  # 10% minimum spread
-        min_value = base_price * (1 - spread_factor)
-        max_value = base_price * (1 + spread_factor)
-        
-        return jsonify({
-            'estimated_value': round(base_price),
-            'min_value': round(min_value),
-            'max_value': round(max_value),
-            'confidence_score': round(confidence_score),
-            'location_score': 80,
-            'condition_score': max(0, 100 - (property_age * 5))  # Decrease by 5% per year
-        })
-    
-    return render_template('tools/valuation.html', 
-                         locations=locations,
-                         amenities=amenities)
+
 
 @app.route('/about')
 def about():
@@ -1303,6 +1426,226 @@ def admin_delete_property_image(image_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/documents')
+@login_required
+@admin_required
+def admin_view_documents():
+    """
+    Admin route to view and manage user document verification.
+    Provides filtering by status, document type and user search with pagination.
+    """
+    status = request.args.get('status', 'all')
+    doc_type = request.args.get('doc_type', 'all')
+    user_search = request.args.get('user_search', '')
+    page = request.args.get('page', 1, type=int)
+    
+    # Base query
+    query = UserDocument.query.join(User, UserDocument.user_id == User.userId)
+    
+    # Apply filters
+    if status == 'pending':
+        query = query.filter(UserDocument.is_verified.is_(None) | 
+                            (UserDocument.is_verified == False) & 
+                            (UserDocument.rejection_reason.is_(None)))
+    elif status == 'verified':
+        query = query.filter(UserDocument.is_verified == True)
+    elif status == 'rejected':
+        query = query.filter(UserDocument.is_verified == False, 
+                           UserDocument.rejection_reason.isnot(None))
+    
+    # Filter by document type
+    if doc_type != 'all':
+        query = query.filter(UserDocument.doc_type == doc_type)
+    
+    # Search by user
+    if user_search:
+        query = query.filter(or_(
+            User.username.ilike(f'%{user_search}%'),
+            User.email.ilike(f'%{user_search}%')
+        ))
+    
+    # Order by upload date (newest first) and paginate
+    documents = query.order_by(UserDocument.upload_date.desc()).paginate(
+        page=page,
+        per_page=10,
+        error_out=False
+    )
+    
+    # Log the document view for security auditing
+    log_security_event(
+        event_type="admin_document_view",
+        user_id=current_user.userId,
+        details=f"Admin viewed document list with filters: status={status}, type={doc_type}, page={page}"
+    )
+    
+    return render_template('admin/documents.html', 
+                         documents=documents, 
+                         status=status,
+                         doc_type=doc_type,
+                         user_search=user_search)
+
+
+@app.route('/admin/documents/<int:doc_id>/verify', methods=['POST'])
+@login_required
+def admin_verify_document(doc_id):
+    """
+    Mark a document as verified by an administrator.
+    Updates the verification status, date, and verifier information.
+    """
+    document = UserDocument.query.get_or_404(doc_id)
+    action = request.form.get('action', '')
+    
+    if action == 'verify':
+        # Mark as verified
+        document.is_verified = True
+        document.verified_by = current_user.userId
+        document.verification_date = datetime.utcnow()
+        document.rejection_reason = None
+        
+        db.session.commit()
+        
+        # Log the verification action
+        log_security_event(
+            event_type="document_verified",
+            user_id=current_user.userId,
+            target_user_id=document.user_id,
+            details=f"Document ID {doc_id} was verified"
+        )
+        
+        flash('Document has been verified successfully.', 'success')
+        
+    elif action == 'reject':
+        # Mark as rejected
+        rejection_reason = request.form.get('rejection_reason', '')
+        
+        if not rejection_reason:
+            flash('A reason for rejection is required.', 'danger')
+            return redirect(url_for('admin_view_documents'))
+        
+        document.is_verified = False
+        document.verified_by = current_user.userId
+        document.verification_date = datetime.utcnow()
+        document.rejection_reason = rejection_reason
+        
+        db.session.commit()
+        
+        # Log the rejection action
+        log_security_event(
+            event_type="document_rejected",
+            user_id=current_user.userId,
+            target_user_id=document.user_id,
+            details=f"Document ID {doc_id} was rejected. Reason: {rejection_reason}"
+        )
+        
+        flash('Document has been rejected.', 'warning')
+        
+    return redirect(url_for('admin_view_documents'))
+
+
+@app.route('/admin/documents/<int:doc_id>/delete', methods=['POST'])
+@login_required
+def admin_delete_document(doc_id):
+    """
+    Delete a document from the system.
+    Removes both the database record and the physical file.
+    """
+    document = UserDocument.query.get_or_404(doc_id)
+    
+    try:
+        # Store file path for deletion after DB record is removed
+        file_path = document.file_path
+        user_id = document.user_id
+        
+        # Delete the database record
+        db.session.delete(document)
+        db.session.commit()
+        
+        # Try to delete the physical file
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
+            
+        # Log the deletion
+        log_security_event(
+            event_type="document_deleted",
+            user_id=current_user.userId,
+            target_user_id=user_id,
+            details=f"Document ID {doc_id} was permanently deleted"
+        )
+        
+        flash('Document has been permanently deleted.', 'info')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error deleting document: {str(e)}")
+        flash('An error occurred while deleting the document.', 'danger')
+    
+    return redirect(url_for('admin_view_documents'))
+
+@app.route('/admin/documents/<int:doc_id>')
+@login_required
+@admin_required
+def admin_view_document(doc_id):
+    """
+    View a specific document for admin verification.
+    Displays document details and provides verification options.
+    """
+    document = UserDocument.query.get_or_404(doc_id)
+    
+    # Log the access for security auditing
+    log_security_event(
+        event_type="document_access",
+        user_id=current_user.userId,
+        target_user_id=document.user_id,
+        details=f"Admin accessed document ID {doc_id}"
+    )
+    
+    return render_template('admin/view_document.html', document=document)
+
+@app.route('/my-documents')
+@login_required
+def user_documents():
+    """
+    Allow users to view and manage their own documents
+    """
+    # Get all documents for the current user
+    documents = UserDocument.query.filter_by(user_id=current_user.userId).order_by(
+        UserDocument.upload_date.desc()
+    ).all()
+    
+    return render_template('user/documents.html', documents=documents)
+
+@app.route('/my-documents/<int:doc_id>/delete', methods=['POST'])
+@login_required
+def user_delete_document(doc_id):
+    """
+    Allow a user to delete their own document
+    """
+    document = UserDocument.query.get_or_404(doc_id)
+    
+    # Ensure the document belongs to the current user
+    if document.user_id != current_user.userId:
+        flash("You don't have permission to delete this document.", "danger")
+        return redirect(url_for('user_documents'))
+    
+    try:
+        # Store file path for deletion after DB record is removed
+        file_path = document.file_path
+        
+        # Delete the database record
+        db.session.delete(document)
+        db.session.commit()
+        
+        # Try to delete the physical file
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
+            
+        flash('Document has been deleted successfully.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error deleting document: {str(e)}")
+        flash('An error occurred while deleting the document.', 'danger')
+    
+    return redirect(url_for('user_documents'))
 
 @app.route('/profile')
 @login_required
@@ -1435,12 +1778,14 @@ def admin_delete_property(property_id):
         Favorites.query.filter_by(propertyId=property_id).delete()
         
         # 2. Delete Listing records (if table exists)
+       
         try:
             db.session.execute(text("DELETE FROM Listing WHERE propertyId = :pid"), {"pid": property_id})
         except Exception as e:
             pass
         
         # 3. Delete from PropertyAmenities (no dependencies)
+
         PropertyAmenity.query.filter_by(propertyId=property_id).delete()
         
         # 4. Delete associated images and their files
@@ -1458,7 +1803,7 @@ def admin_delete_property(property_id):
         for table_name in [
             "PropertyDocuments", "Payment", "Transaction", 
             "RentalAgreement", "PropertyTax", "Maintenance",
-            "Valuation", "LegalCase", "ResidentialProperty", "CommercialProperty"
+            "LegalCase", "ResidentialProperty", "CommercialProperty"
         ]:
             try:
                 db.session.execute(
@@ -1685,5 +2030,103 @@ def map_search():
                          properties=map_properties,
                          api_key=app.config.get('MAPS_API_KEY', ''))
 
-if __name__ == '__main__':
+@app.route('/documents/view/<int:doc_id>')
+@login_required
+def document_view(doc_id):
+    """
+    View a document directly in the browser.
+    Only allows access to the document if the user is either:
+    1. The owner of the document
+    2. An admin user
+    """
+    document = UserDocument.query.get_or_404(doc_id)
+    
+    # Security check: Only document owner or admin can view
+    if document.user_id != current_user.userId and current_user.roleId != Roles.ADMIN:
+        log_security_event(
+            event_type="unauthorized_access",
+            user_id=current_user.userId,
+            target_user_id=document.user_id,
+            details=f"Unauthorized attempt to access document ID {doc_id}"
+        )
+        abort(403)
+    
+    # Check if file exists
+    if not document.file_path or not os.path.exists(document.file_path):
+        flash("The requested file could not be found.", "danger")
+        return redirect(url_for('user_profile'))
+    
+    # Log access
+    if current_user.roleId == Roles.ADMIN and document.user_id != current_user.userId:
+        log_security_event(
+            event_type="document_view",
+            user_id=current_user.userId,
+            target_user_id=document.user_id,
+            details=f"Admin viewed document ID {doc_id}"
+        )
+    
+    try:
+        # Determine the appropriate MIME type
+        mime_type = document.mime_type or 'application/octet-stream'
+        
+        # Return the file for viewing
+        return send_file(
+            document.file_path,
+            mimetype=mime_type,
+            as_attachment=False,
+            download_name=document.original_filename or f"document_{doc_id}"
+        )
+    except Exception as e:
+        current_app.logger.error(f"Error serving document: {str(e)}")
+        flash("An error occurred while trying to view the document.", "danger")
+        return redirect(url_for('user_profile'))
+
+
+@app.route('/documents/download/<int:doc_id>')
+@login_required
+def document_download(doc_id):
+    """
+    Download a document.
+    Enforces the same access controls as document_view.
+    """
+    document = UserDocument.query.get_or_404(doc_id)
+    
+    # Security check: Only document owner or admin can download
+    if document.user_id != current_user.userId and current_user.roleId != Roles.ADMIN:
+        log_security_event(
+            event_type="unauthorized_download",
+            user_id=current_user.userId,
+            target_user_id=document.user_id,
+            details=f"Unauthorized attempt to download document ID {doc_id}"
+        )
+        abort(403)
+    
+    # Check if file exists
+    if not document.file_path or not os.path.exists(document.file_path):
+        flash("The requested file could not be found.", "danger")
+        return redirect(url_for('user_profile'))
+    
+    # Log download
+    if current_user.roleId == Roles.ADMIN and document.user_id != current_user.userId:
+        log_security_event(
+            event_type="document_download",
+            user_id=current_user.userId,
+            target_user_id=document.user_id,
+            details=f"Admin downloaded document ID {doc_id}"
+        )
+    
+    try:
+        # Return the file for download
+        return send_file(
+            document.file_path,
+            as_attachment=True,
+            download_name=document.original_filename or f"document_{doc_id}.{document.file_path.split('.')[-1]}"
+        )
+    except Exception as e:
+        current_app.logger.error(f"Error serving document download: {str(e)}")
+        flash("An error occurred while trying to download the document.", "danger")
+        return redirect(url_for('user_profile'))
+
+
+if __name__ == "__main__":
     app.run(debug=True)

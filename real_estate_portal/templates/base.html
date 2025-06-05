@@ -445,10 +445,8 @@
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="bi bi-tools me-1"></i>Tools
-                        </a>
-                        <ul class="dropdown-menu">
+                        </a>                        <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{{ url_for('loan_calculator') }}"><i class="bi bi-calculator me-2"></i>Loan Calculator</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('property_valuation') }}"><i class="bi bi-graph-up-arrow me-2"></i>Property Valuation</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('compare_properties') }}"><i class="bi bi-bar-chart me-2"></i>Compare Properties</a></li>
                         </ul>
                     </li>
@@ -472,11 +470,15 @@
                                  width="32" 
                                  height="32">
                             {{ current_user.username }}
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
+                        </a>                        <ul class="dropdown-menu dropdown-menu-end">
                             <li>
                                 <a class="dropdown-item" href="{{ url_for('profile') }}">
                                     <i class="bi bi-person me-2"></i>Profile
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('user_documents') }}">
+                                    <i class="bi bi-file-earmark-text me-2"></i>My Documents
                                 </a>
                             </li>
                             <li>

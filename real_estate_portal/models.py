@@ -42,8 +42,17 @@ class User(UserMixin, db.Model):
     roleId = db.Column(db.Integer, db.ForeignKey('UserRole.roleId'), nullable=False)
     isActive = db.Column(db.Boolean, default=True)
     isBanned = db.Column(db.Boolean, default=False)
+    loginAttempts = db.Column(db.Integer, default=0)
+    lastLoginAttempt = db.Column(db.DateTime)
+    lastPasswordChange = db.Column(db.DateTime)
+    passwordResetToken = db.Column(db.String(100), unique=True)
+    passwordResetExpires = db.Column(db.DateTime)
+    lastLogin = db.Column(db.DateTime)
+    lastLoginIP = db.Column(db.String(45))
     createdAt = db.Column(db.DateTime, server_default=db.func.now())
     updatedAt = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+    twoFactorEnabled = db.Column(db.Boolean, default=False)
+    twoFactorSecret = db.Column(db.String(32))
     
     role = db.relationship('UserRole', backref='users')
     
@@ -161,12 +170,21 @@ class UserDocument(db.Model):
     __tablename__ = 'UserDocuments'
     doc_id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('Users.userId'))
-    doc_type = db.Column(db.String(50))  # 'aadhaar', 'pan', 'agreement'
+    doc_type = db.Column(db.String(50))  # 'identity', 'address', 'income', 'property', 'legal', 'financial'
     file_path = db.Column(db.String(255))
-    uploaded_at = db.Column(db.DateTime, default=db.func.now())
+    original_filename = db.Column(db.String(255))
+    file_size = db.Column(db.Integer)  # Size in bytes
+    mime_type = db.Column(db.String(100))
+    upload_date = db.Column(db.DateTime, default=db.func.now())
+    uploaded_at = db.Column(db.DateTime, default=db.func.now())  # Legacy field kept for backward compatibility
     is_verified = db.Column(db.Boolean, default=False)
+    verified_by = db.Column(db.Integer, db.ForeignKey('Users.userId'), nullable=True)
+    verification_date = db.Column(db.DateTime, nullable=True)
+    rejection_reason = db.Column(db.String(500), nullable=True)
     
-    user = db.relationship('User', backref='documents')
+    # Define relationships
+    user = db.relationship('User', foreign_keys=[user_id], backref='documents')
+    verified_by_user = db.relationship('User', foreign_keys=[verified_by], backref='verified_documents')
 
 
 

@@ -338,26 +338,7 @@ def loan_calculator():
     
     return render_template('loan/calculator.html')
 
-@app.route('/property/valuate', methods=['POST'])
-def valuate_property():
-    data = request.json
-    # Mock valuation algorithm - replace with real logic
-    base_rate = {
-        'Mumbai': 15000,
-        'Bangalore': 10000,
-        'Delhi': 12000
-    }.get(data['city'], 8000)
-    
-    valuation = {
-        'market_value': base_rate * int(data['area']),
-        'rental_value': base_rate * int(data['area']) / 1000,
-        'suggested_price_range': {
-            'min': base_rate * int(data['area']) * 0.9,
-            'max': base_rate * int(data['area']) * 1.1
-        }
-    }
-    
-    return jsonify(valuation)
+
 
 @app.route('/loan/apply', methods=['POST'])
 @login_required

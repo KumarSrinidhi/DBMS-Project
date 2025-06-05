@@ -1,0 +1,1 @@
+{"timestamp": "2025-06-04T21:52:09.806044", "level": "ERROR", "name": "app", "message": "Error adding new columns: 'Connection' object has no attribute 'commit'"}

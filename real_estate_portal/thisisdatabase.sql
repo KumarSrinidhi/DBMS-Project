@@ -294,18 +294,6 @@ CREATE TABLE Payment (
     )
 );
 
-/* Property Valuation */
-CREATE TABLE Valuation (
-    valuationId INT PRIMARY KEY,
-    propertyId INT NOT NULL,
-    valuationDate DATE NOT NULL,
-    marketValue DECIMAL(12,2) NOT NULL,
-    rentalValue DECIMAL(12,2),
-    conductedBy VARCHAR(50) NOT NULL,
-    FOREIGN KEY (propertyId) REFERENCES Property(propertyId),
-    CHECK (marketValue > 0),
-    CHECK (rentalValue > 0)
-);
 
 /* Legal Cases */
 CREATE TABLE LegalCase (
@@ -556,14 +544,6 @@ INSERT INTO Payment (transactionId, rentalId, taxId, amount, paymentDate, method
 (NULL, NULL, 8001, 275000, '2023-12-15 15:45:00', 'UPI', 'TAX789', 'Completed'),
 (6002, NULL, NULL, 68500000, '2023-10-15 11:20:00', 'Cheque', 'TX5678', 'Completed'),
 (NULL, 7002, NULL, 5000000, '2023-12-01 09:15:00', 'RTGS', 'RNT901', 'Completed');
-
--- Valuations
-INSERT INTO Valuation VALUES
-(10001, 5001, '2023-01-15', 120000000, 180000, 'JLL India'),
-(10002, 5007, '2023-06-20', 65000000, 420000, 'CBRE Hyderabad'),
-(10003, 5003, '2023-03-10', 95000000, 350000, 'Knight Frank'),
-(10004, 5008, '2023-07-05', 175000000, 550000, 'Colliers International'),
-(10005, 5005, '2023-05-15', 48000000, 150000, 'ANAROCK');
 
 -- Legal Cases
 INSERT INTO LegalCase VALUES

@@ -2,23 +2,31 @@
 
 {% block content %}
 <div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>User Management</h2>
-        <div class="d-flex gap-2">
-            <div class="input-group">
-                <input type="text" class="form-control" id="searchInput" placeholder="Search users...">
-                <button class="btn btn-outline-secondary" type="button">
-                    <i class="bi bi-search"></i>
-                </button>
-            </div>
-            <select class="form-select" style="width: auto;" id="roleFilter">
-                <option value="">All Roles</option>
-                <option value="Buyer">Buyers</option>
-                <option value="Seller">Sellers</option>
-                <option value="Agent">Agents</option>
-            </select>
+    <div class="row">
+        <!-- Admin Navigation -->
+        <div class="col-md-3">
+            {% include 'admin/partials/nav.html' %}
         </div>
-    </div>
+        
+        <!-- Main Content -->
+        <div class="col-md-9">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>User Management</h2>
+                <div class="d-flex gap-2">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="searchInput" placeholder="Search users...">
+                        <button class="btn btn-outline-secondary" type="button">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                    <select class="form-select" style="width: auto;" id="roleFilter">
+                        <option value="">All Roles</option>
+                        <option value="Buyer">Buyers</option>
+                        <option value="Seller">Sellers</option>
+                        <option value="Agent">Agents</option>
+                    </select>
+                </div>
+            </div>
 
     <div class="card">
         <div class="card-body">

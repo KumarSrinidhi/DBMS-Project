@@ -182,9 +182,7 @@
                                     data-principal="{{ (form_data.amount|float) - (form_data.down_payment|float if form_data.down_payment else 0) }}"
                                     data-interest="{{ total_interest|float }}"
                                     aria-label="Loan breakdown chart showing principal vs interest"></canvas>
-                        </div>
-
-                        <!-- Additional Details -->
+                        </div>                        <!-- Additional Details -->
                         <div class="results-grid">
                             <div class="breakdown-card">
                                 <i class="fas fa-calendar-alt"></i>
@@ -249,9 +247,35 @@
                             <li>Choose an optimal tenure - shorter terms mean higher EMIs but less total interest</li>
                             <li>Compare interest rates from different banks and financial institutions</li>
                             <li>Maintain a good credit score (750+) for better interest rates</li>
-                            <li>Consider making prepayments to reduce the principal balance</li>                            <li>Factor in processing fees and other charges when calculating total cost</li>
-                        </ul>
+                            <li>Consider making prepayments to reduce the principal balance</li>                            <li>Factor in processing fees and other charges when calculating total cost</li>                        </ul>
                     </section>
+                    
+                    <!-- Apply for Loan Button -->
+                    {% if emi is defined and emi and current_user.is_authenticated %}
+                    <div class="apply-section mt-4">
+                        <form action="{{ url_for('apply_loan') }}" method="POST" id="applyLoanForm">
+                            <input type="hidden" name="amount" value="{{ (form_data.amount|float) - (form_data.down_payment|float if form_data.down_payment else 0) }}">
+                            <input type="hidden" name="rate" value="{{ form_data.rate }}">
+                            <input type="hidden" name="tenure" value="{{ form_data.tenure }}">
+                            <input type="hidden" name="emi" value="{{ emi }}">
+                            <button type="submit" class="btn btn-success btn-lg w-100">
+                                <i class="fas fa-check-circle me-2"></i>
+                                Apply for This Loan
+                            </button>
+                            <p class="small text-muted text-center mt-2">
+                                <i class="fas fa-shield-alt me-1"></i>
+                                Pre-approval takes just a few seconds
+                            </p>
+                        </form>
+                    </div>
+                    {% elif emi is defined and emi and not current_user.is_authenticated %}
+                    <div class="apply-section mt-4">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <a href="{{ url_for('login') }}">Log in</a> or <a href="{{ url_for('register') }}">register</a> to apply for this loan
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>            <!-- EMI Formula Information -->
             <section class="info-section mt-4" aria-labelledby="formula-header">

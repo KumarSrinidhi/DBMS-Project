@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="mb-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('admin_view_documents') }}">Document Verification</a></li>
+                <li class="breadcrumb-item active" aria-current="page">View Document</li>
+            </ol>
+        </nav>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Document Preview</h4>
+                </div>
+                <div class="card-body">
+                    {% if document.mime_type and document.mime_type.startswith('image/') %}
+                        <img src="{{ url_for('document_view', doc_id=document.doc_id) }}" class="img-fluid" alt="Document Preview">
+                    {% elif document.mime_type and document.mime_type == 'application/pdf' %}
+                        <div class="ratio ratio-16x9">
+                            <iframe src="{{ url_for('document_view', doc_id=document.doc_id) }}" 
+                                    allow="encrypted-media" 
+                                    title="Document Preview"
+                                    class="embed-responsive-item">
+                            </iframe>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <h4 class="alert-heading">Document cannot be previewed</h4>
+                            <p>The document type ({{ document.mime_type or 'unknown' }}) cannot be displayed in the browser. 
+                            Please download the file to view its contents.</p>
+                            <hr>
+                            <a href="{{ url_for('document_download', doc_id=document.doc_id) }}" class="btn btn-primary">
+                                <i class="bi bi-download me-1"></i> Download Document
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Document Details</h4>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-5">Document Type:</dt>
+                        <dd class="col-sm-7">{{ document.doc_type|capitalize }}</dd>
+                        
+                        <dt class="col-sm-5">Original Filename:</dt>
+                        <dd class="col-sm-7">{{ document.original_filename }}</dd>
+                        
+                        <dt class="col-sm-5">File Size:</dt>
+                        <dd class="col-sm-7">{{ (document.file_size / 1024)|round(1) }} KB</dd>
+                        
+                        <dt class="col-sm-5">Uploaded On:</dt>
+                        <dd class="col-sm-7">{{ document.upload_date.strftime('%b %d, %Y %H:%M') }}</dd>
+                        
+                        <dt class="col-sm-5">MIME Type:</dt>
+                        <dd class="col-sm-7">{{ document.mime_type }}</dd>
+                        
+                        <dt class="col-sm-5">Uploaded By:</dt>
+                        <dd class="col-sm-7">
+                            <a href="{{ url_for('admin_edit_user', user_id=document.user.userId) }}">
+                                {{ document.user.username }}
+                            </a>
+                        </dd>
+                        
+                        <dt class="col-sm-5">Current Status:</dt>
+                        <dd class="col-sm-7">
+                            {% if document.is_verified == True %}
+                                <span class="badge bg-success">Verified</span>
+                            {% elif document.is_verified == False and document.rejection_reason %}
+                                <span class="badge bg-danger">Rejected</span>
+                            {% else %}
+                                <span class="badge bg-warning">Pending</span>
+                            {% endif %}
+                        </dd>
+                    </dl>
+
+                    {% if document.is_verified %}
+                        <div class="alert alert-success">
+                            <strong>Verified by:</strong> {{ document.verified_by_user.username }} on {{ document.verification_date.strftime('%b %d, %Y') }}
+                        </div>
+                    {% elif document.rejection_reason %}
+                        <div class="alert alert-danger">
+                            <strong>Rejection reason:</strong> {{ document.rejection_reason }}
+                            <hr>
+                            <small>By {{ document.verified_by_user.username }} on {{ document.verification_date.strftime('%b %d, %Y') }}</small>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if document.is_verified == None or document.is_verified == False %}
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Verify Document</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('admin_verify_document', doc_id=document.doc_id) }}">
+                        <div class="mb-3">
+                            <label class="form-label">Document Verification Action</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="action" id="actionVerify" value="verify" checked>
+                                <label class="form-check-label" for="actionVerify">
+                                    <span class="text-success">Verify</span> - Document is authentic and valid
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="action" id="actionReject" value="reject">
+                                <label class="form-check-label" for="actionReject">
+                                    <span class="text-danger">Reject</span> - Document has issues or concerns
+                                </label>
+                            </div>
+                        </div>
+                    
+                        <div id="rejectionReasonBlock" class="mb-3" style="display:none;">
+                            <label for="rejection_reason" class="form-label">Rejection Reason</label>
+                            <textarea class="form-control" id="rejection_reason" name="rejection_reason" rows="3" placeholder="Explain why this document is being rejected"></textarea>
+                            <div class="form-text">This reason will be visible to the user and cannot be changed once submitted.</div>
+                        </div>
+                      
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-primary">Submit Verification</button>
+                            <a href="{{ url_for('admin_view_documents') }}" class="btn btn-secondary">Back to List</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="card mb-4">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">Danger Zone</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('admin_delete_document', doc_id=document.doc_id) }}" onsubmit="return confirm('Are you sure you want to permanently delete this document? This action cannot be undone.')">
+                        <button type="submit" class="btn btn-danger w-100">
+                            <i class="bi bi-trash-fill me-1"></i> Delete Document Permanently
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const actionVerify = document.getElementById('actionVerify');
+    const actionReject = document.getElementById('actionReject');
+    const rejectionReasonBlock = document.getElementById('rejectionReasonBlock');
+    
+    if (actionVerify && actionReject && rejectionReasonBlock) {
+        // Show/hide rejection reason based on selected action
+        function toggleRejectionReason() {
+            rejectionReasonBlock.style.display = actionReject.checked ? 'block' : 'none';
+        }
+        
+        actionVerify.addEventListener('change', toggleRejectionReason);
+        actionReject.addEventListener('change', toggleRejectionReason);
+    }
+});
+</script>
+{% endblock %}

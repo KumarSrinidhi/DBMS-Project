@@ -218,7 +218,6 @@ Favorites (favoriteId, userId, propertyId)
 
 ### 5. **Financial Tools**
 - **Loan Calculator**: EMI calculations with interactive charts
-- **Property Valuation**: Automated property value estimation
 - **Comparison Tool**: Side-by-side property comparisons
 - **Market Analytics**: Price trends and market insights
 
