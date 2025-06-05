@@ -2204,3 +2204,6 @@ def document_download(doc_id):
         current_app.logger.error(f"Error serving document download: {str(e)}")
         flash("An error occurred while trying to download the document.", "danger")
         return redirect(url_for('user_profile'))
+
+if __name__ == "__main__":
+    app.run(debug=True)
