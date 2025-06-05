@@ -1,1 +1,2 @@
 {"timestamp": "2025-06-04T21:52:09.806044", "level": "ERROR", "name": "app", "message": "Error adding new columns: 'Connection' object has no attribute 'commit'"}
+{"timestamp": "2025-06-05T00:16:48.670038", "level": "ERROR", "name": "app", "message": "Document upload error: log_security_event() got an unexpected keyword argument 'ip_address'", "ip": "127.0.0.1", "method": "POST", "url": "http://127.0.0.1:5000/documents/upload", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36", "user_id": 1}

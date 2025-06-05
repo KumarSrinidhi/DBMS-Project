@@ -966,13 +966,11 @@ def upload_document():
         # Save file securely
         filepath = os.path.join(app.config['DOCUMENT_UPLOAD_FOLDER'], filename)
         file.save(filepath)
-        
-        # Log document upload for audit purposes
+          # Log document upload for audit purposes
         log_security_event(
             event_type="document_upload",
-            user_id=current_user.userId,
-            ip_address=request.remote_addr,
-            description=f"Document uploaded: type={doc_type}, filename={filename}"
+            details=f"Document uploaded: type={doc_type}, filename={filename}",
+            user_id=current_user.userId
         )
         
         # Store document metadata in database
@@ -1093,13 +1091,11 @@ def apply_loan():
             
         # Generate reference ID safely
         reference_id = f"LOAN{random.randint(100000, 999999)}"
-        
-        # Log loan application for security/audit
+          # Log loan application for security/audit
         log_security_event(
             event_type="loan_application",
-            user_id=current_user.userId,
-            ip_address=request.remote_addr,
-            description=f"Loan application submitted: Amount={amount}, Rate={rate}%, Tenure={tenure} years"
+            details=f"Loan application submitted: Amount={amount}, Rate={rate}%, Tenure={tenure} years",
+            user_id=current_user.userId
         )
         
         # Mock approval with safety checks - in real app, this would call a loan approval service
@@ -1120,16 +1116,14 @@ def apply_loan():
             'rate': rate,
             'tenure': tenure,
             'user_id': current_user.userId,
-            'application_date': datetime.now()
-        }
+            'application_date': datetime.now()        }
         
         return render_template('loan/application_result.html', result=bank_response)
     except Exception as e:
         log_security_event(
             event_type="loan_application_error",
-            user_id=current_user.userId if current_user.is_authenticated else None,
-            ip_address=request.remote_addr,
-            description=f"Error during loan application: {str(e)}"
+            details=f"Error during loan application: {str(e)}",
+            user_id=current_user.userId if current_user.is_authenticated else None
         )
         flash(f"Error processing loan application: {str(e)}", "danger")
         return redirect(url_for('loan_calculator'))
@@ -1504,13 +1498,11 @@ def admin_verify_document(doc_id):
         document.rejection_reason = None
         
         db.session.commit()
-        
-        # Log the verification action
+          # Log the verification action
         log_security_event(
             event_type="document_verified",
             user_id=current_user.userId,
-            target_user_id=document.user_id,
-            details=f"Document ID {doc_id} was verified"
+            details=f"Document ID {doc_id} was verified for user {document.user_id}"
         )
         
         flash('Document has been verified successfully.', 'success')
@@ -1529,13 +1521,11 @@ def admin_verify_document(doc_id):
         document.rejection_reason = rejection_reason
         
         db.session.commit()
-        
-        # Log the rejection action
+          # Log the rejection action
         log_security_event(
             event_type="document_rejected",
             user_id=current_user.userId,
-            target_user_id=document.user_id,
-            details=f"Document ID {doc_id} was rejected. Reason: {rejection_reason}"
+            details=f"Document ID {doc_id} was rejected for user {document.user_id}. Reason: {rejection_reason}"
         )
         
         flash('Document has been rejected.', 'warning')
@@ -1564,13 +1554,11 @@ def admin_delete_document(doc_id):
         # Try to delete the physical file
         if file_path and os.path.exists(file_path):
             os.remove(file_path)
-            
-        # Log the deletion
+              # Log the deletion
         log_security_event(
             event_type="document_deleted",
             user_id=current_user.userId,
-            target_user_id=user_id,
-            details=f"Document ID {doc_id} was permanently deleted"
+            details=f"Document ID {doc_id} was permanently deleted for user {user_id}"
         )
         
         flash('Document has been permanently deleted.', 'info')
@@ -1590,13 +1578,11 @@ def admin_view_document(doc_id):
     Displays document details and provides verification options.
     """
     document = UserDocument.query.get_or_404(doc_id)
-    
-    # Log the access for security auditing
+      # Log the access for security auditing
     log_security_event(
         event_type="document_access",
         user_id=current_user.userId,
-        target_user_id=document.user_id,
-        details=f"Admin accessed document ID {doc_id}"
+        details=f"Admin accessed document ID {doc_id} for user {document.user_id}"
     )
     
     return render_template('admin/view_document.html', document=document)
@@ -2040,14 +2026,12 @@ def document_view(doc_id):
     2. An admin user
     """
     document = UserDocument.query.get_or_404(doc_id)
-    
-    # Security check: Only document owner or admin can view
+      # Security check: Only document owner or admin can view
     if document.user_id != current_user.userId and current_user.roleId != Roles.ADMIN:
         log_security_event(
             event_type="unauthorized_access",
             user_id=current_user.userId,
-            target_user_id=document.user_id,
-            details=f"Unauthorized attempt to access document ID {doc_id}"
+            details=f"Unauthorized attempt to access document ID {doc_id} belonging to user {document.user_id}"
         )
         abort(403)
     
@@ -2055,14 +2039,12 @@ def document_view(doc_id):
     if not document.file_path or not os.path.exists(document.file_path):
         flash("The requested file could not be found.", "danger")
         return redirect(url_for('user_profile'))
-    
-    # Log access
+      # Log access
     if current_user.roleId == Roles.ADMIN and document.user_id != current_user.userId:
         log_security_event(
             event_type="document_view",
             user_id=current_user.userId,
-            target_user_id=document.user_id,
-            details=f"Admin viewed document ID {doc_id}"
+            details=f"Admin viewed document ID {doc_id} belonging to user {document.user_id}"
         )
     
     try:
@@ -2090,14 +2072,12 @@ def document_download(doc_id):
     Enforces the same access controls as document_view.
     """
     document = UserDocument.query.get_or_404(doc_id)
-    
-    # Security check: Only document owner or admin can download
+      # Security check: Only document owner or admin can download
     if document.user_id != current_user.userId and current_user.roleId != Roles.ADMIN:
         log_security_event(
             event_type="unauthorized_download",
             user_id=current_user.userId,
-            target_user_id=document.user_id,
-            details=f"Unauthorized attempt to download document ID {doc_id}"
+            details=f"Unauthorized attempt to download document ID {doc_id} belonging to user {document.user_id}"
         )
         abort(403)
     
@@ -2105,14 +2085,12 @@ def document_download(doc_id):
     if not document.file_path or not os.path.exists(document.file_path):
         flash("The requested file could not be found.", "danger")
         return redirect(url_for('user_profile'))
-    
-    # Log download
+      # Log download
     if current_user.roleId == Roles.ADMIN and document.user_id != current_user.userId:
         log_security_event(
             event_type="document_download",
             user_id=current_user.userId,
-            target_user_id=document.user_id,
-            details=f"Admin downloaded document ID {doc_id}"
+            details=f"Admin downloaded document ID {doc_id} belonging to user {document.user_id}"
         )
     
     try:

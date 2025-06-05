@@ -131,11 +131,20 @@
                             <option value="legal">Legal Document</option>
                             <option value="financial">Financial Document</option>
                         </select>
-                    </div>
-                    <div class="mb-3">
+                    </div>                    <div class="mb-3">
                         <label for="documentFile" class="form-label">Select File</label>
-                        <input class="form-control" type="file" id="documentFile" name="document" required>
-                        <div class="form-text">Allowed file types: PDF, JPG, PNG, JPEG (Max size: 10MB)</div>
+                        <input class="form-control" type="file" id="documentFile" name="document" required 
+                               accept=".pdf,.jpg,.jpeg,.png">
+                        <div class="form-text">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Allowed file types: PDF, JPG, PNG, JPEG (Max size: 10MB)
+                        </div>
+                        <div class="mt-2">
+                            <div class="progress d-none" id="uploadProgress">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
                     </div>
                     <div class="alert alert-info">
                         <small>
@@ -143,12 +152,12 @@
                             Your document will be securely stored and only used for verification purposes. All files are encrypted and protected.
                         </small>
                     </div>
-                </div>
-                <div class="modal-footer">
+                </div>                <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary" id="uploadButton">
-                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true" id="uploadSpinner"></span>
-                        Upload Document
+                    <button type="submit" class="btn btn-primary d-flex align-items-center" id="uploadButton">
+                        <span class="spinner-border spinner-border-sm d-none me-2" role="status" aria-hidden="true" id="uploadSpinner"></span>
+                        <i class="bi bi-upload me-2" id="uploadIcon"></i>
+                        <span id="uploadText">Upload Document</span>
                     </button>
                 </div>
             </form>
@@ -163,16 +172,288 @@ document.addEventListener('DOMContentLoaded', function() {
     const uploadForm = document.getElementById('uploadDocumentForm');
     const uploadButton = document.getElementById('uploadButton');
     const uploadSpinner = document.getElementById('uploadSpinner');
+    const uploadModal = new bootstrap.Modal(document.getElementById('uploadDocumentModal'));
+    const progressContainer = document.getElementById('uploadProgress');
+    const progressBar = progressContainer?.querySelector('.progress-bar');
     
     if (uploadForm) {
-        uploadForm.addEventListener('submit', function() {
-            // Disable button and show spinner
-            uploadButton.disabled = true;
-            uploadSpinner.classList.remove('d-none');
+        uploadForm.addEventListener('submit', function(e) {
+            e.preventDefault(); // Prevent default form submission
             
-            // Form submission is handled by the browser
+            // Validate form
+            if (!validateForm()) {
+                return;
+            }
+            
+            // Show progress and disable form
+            startUpload();
+            
+            // Create FormData for AJAX submission
+            const formData = new FormData(uploadForm);
+            
+            // Create XMLHttpRequest for progress tracking
+            const xhr = new XMLHttpRequest();
+            
+            // Track upload progress
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percentProgress = Math.round((e.loaded / e.total) * 100);
+                    updateProgress(percentProgress);
+                }
+            });
+            
+            // Handle response
+            xhr.addEventListener('load', function() {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    
+                    if (xhr.status === 200 && data.status === 'success') {
+                        // Show success
+                        showNotification('success', data.message || 'Document uploaded successfully!');
+                        
+                        // Close modal and reset
+                        setTimeout(() => {
+                            uploadModal.hide();
+                            resetForm();
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        // Show error
+                        showNotification('error', data.error || 'Upload failed');
+                        resetUploadState();
+                    }
+                } catch (error) {
+                    console.error('Parse error:', error);
+                    showNotification('error', 'An unexpected error occurred');
+                    resetUploadState();
+                }
+            });
+            
+            // Handle network errors
+            xhr.addEventListener('error', function() {
+                showNotification('error', 'Network error occurred during upload');
+                resetUploadState();
+            });
+            
+            // Handle timeout
+            xhr.addEventListener('timeout', function() {
+                showNotification('error', 'Upload timeout - please try again');
+                resetUploadState();
+            });
+            
+            // Send request
+            xhr.open('POST', uploadForm.action);
+            xhr.timeout = 120000; // 2 minute timeout
+            xhr.send(formData);
         });
     }
+    
+    function validateForm() {
+        const docType = document.getElementById('documentType').value;
+        const fileInput = document.getElementById('documentFile');
+        
+        if (!docType) {
+            showNotification('error', 'Please select a document type');
+            return false;
+        }
+        
+        if (!fileInput.files.length) {
+            showNotification('error', 'Please select a file to upload');
+            return false;
+        }
+        
+        return true;
+    }
+      function startUpload() {
+        const uploadIcon = document.getElementById('uploadIcon');
+        const uploadText = document.getElementById('uploadText');
+        
+        uploadButton.disabled = true;
+        uploadSpinner.classList.remove('d-none');
+        
+        if (uploadIcon) uploadIcon.classList.add('d-none');
+        if (uploadText) uploadText.textContent = 'Uploading...';
+        
+        // Show progress bar
+        if (progressContainer) {
+            progressContainer.classList.remove('d-none');
+            updateProgress(0);
+        }
+        
+        // Disable form inputs
+        const inputs = uploadForm.querySelectorAll('input, select, button');
+        inputs.forEach(input => {
+            if (input !== uploadButton) {
+                input.disabled = true;
+            }
+        });
+    }
+    
+    function updateProgress(percent) {
+        if (progressBar) {
+            progressBar.style.width = `${percent}%`;
+            progressBar.setAttribute('aria-valuenow', percent);
+            progressBar.textContent = `${percent}%`;
+        }
+    }
+      function resetUploadState() {
+        const uploadIcon = document.getElementById('uploadIcon');
+        const uploadText = document.getElementById('uploadText');
+        
+        uploadButton.disabled = false;
+        uploadSpinner.classList.add('d-none');
+        
+        if (uploadIcon) uploadIcon.classList.remove('d-none');
+        if (uploadText) uploadText.textContent = 'Upload Document';
+        
+        // Hide progress bar
+        if (progressContainer) {
+            progressContainer.classList.add('d-none');
+        }
+        
+        // Re-enable form inputs
+        const inputs = uploadForm.querySelectorAll('input, select, button');
+        inputs.forEach(input => input.disabled = false);
+    }
+    
+    function resetForm() {
+        uploadForm.reset();
+        
+        // Remove file info
+        const fileInfo = document.querySelector('.file-info');
+        if (fileInfo) {
+            fileInfo.remove();
+        }
+        
+        resetUploadState();
+    }
+    
+    // Show notification function
+    function showNotification(type, message) {
+        // Remove any existing notifications
+        const existingNotifications = document.querySelectorAll('.upload-notification');
+        existingNotifications.forEach(notification => notification.remove());
+        
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} upload-notification position-fixed shadow-lg`;
+        notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 350px; border-radius: 8px;';
+        notification.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="bi bi-${type === 'success' ? 'check-circle-fill text-success' : 'exclamation-triangle-fill text-danger'} me-2 fs-5"></i>
+                <div class="flex-grow-1 fw-medium">${message}</div>
+                <button type="button" class="btn-close ms-2" onclick="this.parentElement.parentElement.remove()"></button>
+            </div>
+        `;
+        
+        // Add to page
+        document.body.appendChild(notification);
+        
+        // Add slide-in animation
+        notification.style.transform = 'translateX(100%)';
+        notification.style.transition = 'transform 0.3s ease-out';
+        setTimeout(() => {
+            notification.style.transform = 'translateX(0)';
+        }, 10);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => notification.remove(), 300);
+            }
+        }, 5000);
+    }
+    
+    // File input validation and preview
+    const fileInput = document.getElementById('documentFile');
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            const file = this.files[0];
+            
+            // Remove previous file info
+            const existingFileInfo = document.querySelector('.file-info');
+            if (existingFileInfo) {
+                existingFileInfo.remove();
+            }
+            
+            if (file) {
+                // Check file size (10MB limit)
+                const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+                if (file.size > maxSize) {
+                    showNotification('error', 'File size must be less than 10MB');
+                    this.value = '';
+                    return;
+                }
+                
+                // Check file type
+                const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+                const fileType = file.type.toLowerCase();
+                
+                if (!allowedTypes.includes(fileType)) {
+                    showNotification('error', 'Invalid file type. Please select PDF, JPG, or PNG files only.');
+                    this.value = '';
+                    return;
+                }
+                
+                // Show file size info
+                const fileSizeKB = Math.round(file.size / 1024);
+                const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                const sizeText = fileSizeKB > 1024 ? `${fileSizeMB} MB` : `${fileSizeKB} KB`;
+                
+                // Create file info display
+                const fileInfo = document.createElement('div');
+                fileInfo.className = 'file-info mt-2 p-2 bg-light rounded border';
+                fileInfo.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-file-earmark-${getFileIcon(fileType)} text-primary me-2 fs-5"></i>
+                        <div class="flex-grow-1">
+                            <div class="fw-medium text-truncate" style="max-width: 250px;" title="${file.name}">${file.name}</div>
+                            <small class="text-muted">${sizeText} • ${getFileTypeLabel(fileType)}</small>
+                        </div>
+                        <i class="bi bi-check-circle-fill text-success"></i>
+                    </div>
+                `;
+                
+                // Insert after the file input
+                fileInput.parentNode.appendChild(fileInfo);
+            }
+        });
+    }
+    
+    function getFileIcon(mimeType) {
+        switch (mimeType) {
+            case 'application/pdf':
+                return 'pdf';
+            case 'image/jpeg':
+            case 'image/jpg':
+            case 'image/png':
+                return 'image';
+            default:
+                return 'text';
+        }
+    }
+    
+    function getFileTypeLabel(mimeType) {
+        switch (mimeType) {
+            case 'application/pdf':
+                return 'PDF Document';
+            case 'image/jpeg':
+            case 'image/jpg':
+                return 'JPEG Image';
+            case 'image/png':
+                return 'PNG Image';
+            default:
+                return 'Document';
+        }
+    }
+    
+    // Reset form when modal is closed
+    document.getElementById('uploadDocumentModal').addEventListener('hidden.bs.modal', function() {
+        if (!uploadButton.disabled) { // Only reset if not currently uploading
+            resetForm();
+        }
+    });
 });
 </script>
 {% endblock %}
